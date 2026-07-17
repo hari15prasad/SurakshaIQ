@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "targets": [
+      "suraksha_iq_backend"
+    ],
+    "ignore": [],
+    "source": "functions"
+  },
+  "client": {
+    "source": "suraksha-iq-client",
+    "plugin": "zcatalyst-cli-plugin-react"
+  },
+  "appsail": [
+    {
+      "source": ".",
+      "name": "suraksha-iq-backend"
+    }
+  ]
+}
