@@ -1,15 +1,10 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import Optional
-from datetime import datetime, timezone, timedelta
+from typing import Optional, Dict, Any
 
-from app.database.postgres.connection import get_db
-from app.models.officer import Officer
-from app.models.district import District
 from app.api.deps import get_current_officer
+from app.repositories.district_repo import DistrictRepository
+from app.services.dashboard_service import DashboardService
 from app.schemas.district_analytics import DistrictRollupResponse, DistrictTrend
-from app.repositories.dashboard_repo import DashboardRepository
 from app.models.enums import Role
 
 router = APIRouter()
@@ -22,48 +17,44 @@ router = APIRouter()
 )
 async def get_district_analytics(
     district_id: str,
-    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
-    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Officer = Depends(get_current_officer)
+    start_date: Optional[str] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[str] = Query(None, description="End date (UTC)"),
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Retrieves district analytics from Catalyst Data Store."""
     try:
-        # Check if the district exists
-        district_query = select(District).where(District.id == district_id)
-        result = await db.execute(district_query)
-        district = result.scalar_one_or_none()
+        district_repo = DistrictRepository()
+        district = await district_repo.find_by_id(district_id)
         if not district:
             raise HTTPException(status_code=404, detail="District not found")
-            
-        repo = DashboardRepository(db)
-        stats = await repo.get_statistics(current_user, start_date=start_date, end_date=end_date)
-        
-        # Extract total crimes for THIS district
+
+        service = DashboardService()
+        stats = await service.get_statistics(current_user)
+
         total_crimes = 0
         for ds in stats.by_district:
             if ds.district_id == district_id:
                 total_crimes = ds.count
                 break
-                
+
         comparisons = None
-        # If user has state-wide view, provide comparisons to other districts
-        if current_user.role in [Role.STATE_COMMAND, Role.SYSTEM_ADMINISTRATOR, Role.CID_ANALYST, Role.RANGE_IG]:
+        officer_role = current_user.get("role", "")
+        state_roles = [Role.STATE_COMMAND.value, Role.SYSTEM_ADMINISTRATOR.value, Role.CID_ANALYST.value, Role.RANGE_IG.value]
+        if officer_role in state_roles:
             comparisons = []
             for ds in stats.by_district:
                 if ds.district_id != district_id:
-                    # In a real app, calculate trend percentage between periods.
-                    # For this scaffold, we just return the counts from the current stats
                     comparisons.append(DistrictTrend(
                         district_id=ds.district_id,
                         district_name=ds.district_name,
                         current_count=ds.count,
-                        trend_direction="FLAT", # Mock placeholder for trend
+                        trend_direction="FLAT",
                         trend_percentage=0.0
                     ))
 
         return DistrictRollupResponse(
             district_id=district_id,
-            district_name=district.name,
+            district_name=district.get("name", "Unknown"),
             total_crimes=total_crimes,
             comparisons=comparisons
         )

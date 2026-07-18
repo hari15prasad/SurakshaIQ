@@ -1,30 +1,27 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional, Any, Dict
-from datetime import datetime
+from typing import Optional
+from app.schemas.enums import EntityStatus
 
 class ReportBase(BaseModel):
     name: str
     report_type: str
-    parameters_json: Optional[Dict[str, Any]] = None
+    parameters_json: Optional[str] = None # ZCQL/Catalyst standard text column for JSON
+    created_by_officer_id: str
+    status: EntityStatus = EntityStatus.ACTIVE
+
+class ReportCreate(ReportBase):
+    pass
+
+class ReportUpdate(BaseModel):
+    name: Optional[str] = None
+    report_type: Optional[str] = None
+    parameters_json: Optional[str] = None
+    created_by_officer_id: Optional[str] = None
+    status: Optional[EntityStatus] = None
 
 class ReportResponse(ReportBase):
-    id: str
-    created_by_officer_id: str
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-class ReportListResponse(BaseModel):
-    data: List[ReportResponse]
-    total: int
-    page: int
-    size: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-class ReportDetailResponse(ReportResponse):
-    # Depending on the report_type, this could hold the fetched data
-    # For now, it just holds the configuration metadata.
-    report_data: Optional[Dict[str, Any]] = None
+    ROWID: str
+    CREATEDTIME: str
+    MODIFIEDTIME: str
     
     model_config = ConfigDict(from_attributes=True)

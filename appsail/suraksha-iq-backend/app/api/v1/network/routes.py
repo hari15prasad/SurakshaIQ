@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from neo4j import AsyncSession
-from typing import Optional
+from typing import Dict, Any
 
-from app.database.neo4j.connection import get_neo4j_session
-from app.models.officer import Officer
 from app.api.deps import get_current_officer
+from app.repositories.criminal_repo import CriminalRepository
 from app.schemas.network import NetworkGraphResponse, Node, Link
-from app.graph.link_analysis.offender_graph_repo import OffenderGraphRepository
 
 router = APIRouter()
 
@@ -14,28 +11,42 @@ router = APIRouter()
     "/offender/{offender_id}",
     response_model=NetworkGraphResponse,
     summary="Get Offender Network Graph",
-    description="Retrieves a graph of relationships (crimes, co-offenders) for a specific offender suitable for D3.js visualization."
+    description="Retrieves a graph of relationships for a specific offender suitable for D3.js visualization."
 )
 async def get_offender_network(
     offender_id: str,
-    neo4j_session: Optional[AsyncSession] = Depends(get_neo4j_session),
-    current_user: Officer = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Retrieves offender network from Catalyst Data Store."""
     try:
-        repo = OffenderGraphRepository(neo4j_session)
-        graph_data = await repo.get_offender_network(offender_id)
-        
-        # Additional centrality metrics could be calculated here or in the repo.
-        # For this scaffold, we return a simple representation.
-        centrality = {
-            offender_id: 1.0 # placeholder
-        }
-        
+        repo = CriminalRepository()
+        offender = await repo.find_by_id(offender_id)
+
+        if not offender:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Offender not found"
+            )
+
+        # Build a single-node graph representation from Catalyst data
+        nodes = [
+            Node(
+                id=offender.get("ROWID", offender_id),
+                label=offender.get("name", "Unknown"),
+                type="Offender",
+                properties=offender
+            )
+        ]
+        links = []
+        centrality = {offender_id: 1.0}
+
         return NetworkGraphResponse(
-            nodes=[Node.model_validate(n) for n in graph_data.get("nodes", [])],
-            links=[Link.model_validate(l) for l in graph_data.get("links", [])],
+            nodes=nodes,
+            links=links,
             centrality_metrics=centrality
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

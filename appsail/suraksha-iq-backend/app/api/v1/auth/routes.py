@@ -1,39 +1,40 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any
 
-from app.api.deps import get_db_session
 from app.auth.catalyst_verifier import verify_catalyst_token
 from app.services.officer_service import OfficerService
 from app.security.jwt import create_access_token
 from app.schemas.officer import OfficerResponse
-from app.models.enums import ROLE_PERMISSIONS_MAP
+from app.models.enums import ROLE_PERMISSIONS_MAP, Role, Permission
+from app.api.deps import get_current_officer, RequirePermission
 
 router = APIRouter()
 
 @router.post("/verify-catalyst")
 async def verify_catalyst_session(
     request: Request,
-    session: AsyncSession = Depends(get_db_session)
 ) -> Dict[str, Any]:
     """
     1. Verifies the incoming Catalyst session/token.
-    2. Syncs/provisions the Officer in the backend database.
+    2. Syncs/provisions the Officer in Catalyst Data Store.
     3. Issues a short-lived localized JWT for subsequent API calls.
     """
-    # 1. Verify Catalyst Identity
     catalyst_identity = verify_catalyst_token(request)
     
-    # 2. Sync with local database (creates Officer on first login)
-    officer = await OfficerService.sync_catalyst_identity(session, catalyst_identity)
+    officer = await OfficerService.sync_catalyst_identity(catalyst_identity)
     
-    # 3. Create Backend JWT Session
-    permissions = ROLE_PERMISSIONS_MAP.get(officer.role, [])
+    officer_role_str = officer.get("role", "STATION_HOUSE_OFFICER")
+    try:
+        role_enum = Role(officer_role_str)
+    except ValueError:
+        role_enum = Role.STATION_HOUSE_OFFICER
+    
+    permissions = ROLE_PERMISSIONS_MAP.get(role_enum, [])
     
     token_payload = {
-        "sub": str(officer.id),
-        "cat_id": officer.catalyst_user_id,
-        "role": officer.role.value if hasattr(officer.role, 'value') else str(officer.role),
+        "sub": officer.get("ROWID", ""),
+        "cat_id": officer.get("user_id", ""),
+        "role": officer_role_str,
         "permissions": [p.value for p in permissions]
     }
     
@@ -42,39 +43,33 @@ async def verify_catalyst_session(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "officer": OfficerResponse.model_validate(officer).model_dump()
+        "officer": officer
     }
 
 @router.post("/logout")
 async def logout(request: Request):
     """
     Tears down the backend session. 
-    Since JWTs are stateless, actual invalidation happens on the client by deleting the token,
-    or via a token blocklist (if implemented later).
+    Since JWTs are stateless, actual invalidation happens on the client by deleting the token.
     """
-    # [Task 2 Integration Point: Add token blocklist or Redis session invalidation here]
     return {"message": "Successfully logged out of backend session."}
 
-from app.api.deps import get_current_officer, RequirePermission
-from app.models.enums import Permission
-from app.models.officer import Officer
-
-@router.get("/me", response_model=OfficerResponse)
+@router.get("/me")
 async def read_users_me(
-    current_officer: Officer = Depends(get_current_officer)
+    current_officer: Dict[str, Any] = Depends(get_current_officer)
 ):
     """
-    Returns the currently authenticated officer. 
+    Returns the currently authenticated officer.
     Guarded by `get_current_officer` which validates the JWT token.
     """
     return current_officer
 
 @router.get("/sensitive-data")
 async def read_sensitive_data(
-    current_officer: Officer = Depends(RequirePermission([Permission.VIEW_PII]))
+    current_officer: Dict[str, Any] = Depends(RequirePermission([Permission.VIEW_PII]))
 ):
     """
     Example protected route guarded by Permission checking.
     Only roles with VIEW_PII permission will succeed.
     """
-    return {"message": "You have access to sensitive PII.", "officer_id": current_officer.id}
+    return {"message": "You have access to sensitive PII.", "officer_id": current_officer.get("ROWID")}

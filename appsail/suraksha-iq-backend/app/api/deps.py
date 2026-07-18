@@ -1,36 +1,26 @@
-from typing import AsyncGenerator
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database.postgres.connection import get_db
-
-async def get_db_session(session: AsyncSession = Depends(get_db)) -> AsyncSession:
-    """
-    Centralized dependency for injecting the AsyncSession into API routes.
-    Use this as: `session: AsyncSession = Depends(get_db_session)`
-    """
-    return session
-
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.security.jwt import verify_access_token, TokenPayload
 from app.repositories.officer_repo import OfficerRepository
-from app.models.officer import Officer
-from app.models.enums import Role, Permission
+from app.models.enums import Role, Permission, ROLE_PERMISSIONS_MAP
+from app.core.logger import logger
+from typing import Dict, Any
 
 oauth2_scheme = HTTPBearer()
 
 async def get_current_officer(
     credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme),
-    session: AsyncSession = Depends(get_db_session)
-) -> Officer:
+) -> Dict[str, Any]:
     """
-    Validates the JWT token, checks expiration, and retrieves the Officer from DB.
-    Throws 401 if token is invalid or officer doesn't exist/is deleted.
+    Validates the JWT token and retrieves the Officer from Catalyst Data Store.
+    Returns a dict with officer data from Catalyst.
+    Throws 401 if token is invalid or officer doesn't exist.
     """
     token_payload_dict = verify_access_token(credentials.credentials)
     token_data = TokenPayload(**token_payload_dict)
     
-    officer = await OfficerRepository.get_by_catalyst_id(session, token_data.cat_id)
+    repo = OfficerRepository()
+    officer = await repo.find_by_user_id(token_data.cat_id)
     if not officer:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -46,8 +36,9 @@ class RequireRole:
     def __init__(self, allowed_roles: list[Role]):
         self.allowed_roles = allowed_roles
 
-    async def __call__(self, current_officer: Officer = Depends(get_current_officer)) -> Officer:
-        if current_officer.role not in self.allowed_roles:
+    async def __call__(self, current_officer: Dict[str, Any] = Depends(get_current_officer)) -> Dict[str, Any]:
+        officer_role = current_officer.get("role", "")
+        if officer_role not in [r.value for r in self.allowed_roles]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Operation not permitted. Required roles: {[r.value for r in self.allowed_roles]}"
@@ -62,9 +53,17 @@ class RequirePermission:
     def __init__(self, required_permissions: list[Permission]):
         self.required_permissions = required_permissions
 
-    async def __call__(self, current_officer: Officer = Depends(get_current_officer)) -> Officer:
-        from app.models.enums import ROLE_PERMISSIONS_MAP
-        officer_permissions = ROLE_PERMISSIONS_MAP.get(current_officer.role, [])
+    async def __call__(self, current_officer: Dict[str, Any] = Depends(get_current_officer)) -> Dict[str, Any]:
+        officer_role_str = current_officer.get("role", "")
+        try:
+            officer_role = Role(officer_role_str)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Unknown role: {officer_role_str}"
+            )
+        
+        officer_permissions = ROLE_PERMISSIONS_MAP.get(officer_role, [])
         
         for perm in self.required_permissions:
             if perm not in officer_permissions:

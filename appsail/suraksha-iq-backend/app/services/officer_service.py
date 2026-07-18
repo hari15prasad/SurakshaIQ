@@ -1,16 +1,50 @@
-from typing import Dict, Any
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Dict, Any, Optional
 from app.repositories.officer_repo import OfficerRepository
-from app.schemas.officer import OfficerCreate
-from app.models.officer import Officer
+from app.core.logger import logger
+from app.core.exceptions import DataValidationError, RepositoryError
 
 class OfficerService:
-    """
-    Service layer orchestrating the synchronization of Catalyst Identities to Local Officers.
-    """
+    """Service layer orchestrating Officer operations."""
     
-    @staticmethod
-    async def sync_catalyst_identity(session: AsyncSession, catalyst_identity: Dict[str, Any]) -> Officer:
+    def __init__(self, repo: OfficerRepository):
+        self.repo = repo
+
+    async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Creates a new Officer."""
+        logger.info(f"Creating Officer with data: {data}")
+        return await self.repo.create(data)
+
+    async def update(self, id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Updates an existing Officer."""
+        logger.info(f"Updating Officer {id}")
+        return await self.repo.update(id, data)
+
+    async def delete(self, id: str) -> bool:
+        """Deletes an Officer."""
+        logger.info(f"Deleting Officer {id}")
+        return await self.repo.delete(id)
+
+    async def get_by_id(self, id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves an Officer by ID."""
+        logger.info(f"Fetching Officer {id}")
+        return await self.repo.find_by_id(id)
+
+    async def get_all(self, limit: int = 100, next_token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieves all Officers."""
+        logger.info("Fetching all Officers")
+        return await self.repo.find_all(limit, next_token)
+
+    async def exists(self, column: str, value: Any) -> bool:
+        """Checks if an Officer exists."""
+        logger.info(f"Checking if Officer exists where {column}={value}")
+        return await self.repo.exists(column, value)
+
+    async def count(self) -> int:
+        """Counts all Officers."""
+        logger.info("Counting all Officers")
+        return await self.repo.count()
+
+    async def sync_catalyst_identity(self, catalyst_identity: Dict[str, Any]) -> Dict[str, Any]:
         """
         Looks up an officer by their Catalyst ID. If they don't exist, provisions a new record.
         """
@@ -21,26 +55,24 @@ class OfficerService:
         last_name = catalyst_identity.get("last_name", "")
         full_name = f"{first_name} {last_name}".strip() or "Unknown Officer"
         
-        # Extract role from Catalyst (fallback to default)
         role_details = catalyst_identity.get("role_details", {})
-        catalyst_role = role_details.get("role_name", "STATION_OFFICER")
-        
-        # Map Catalyst role to backend role enum/string if needed (Task 2 integration point)
-        role = catalyst_role
+        catalyst_role = role_details.get("role_name", "STATION_HOUSE_OFFICER")
 
         # 1. Lookup existing
-        officer = await OfficerRepository.get_by_catalyst_id(session, catalyst_id)
+        officer = await self.repo.find_by_user_id(catalyst_id)
         if officer:
-            # (Optional) Update fields if they changed in Catalyst
             return officer
             
         # 2. First-login provisioning
-        new_officer_data = OfficerCreate(
-            catalyst_user_id=catalyst_id,
-            name=full_name,
-            email=email,
-            role=role,
-        )
+        new_officer_data = {
+            "user_id": catalyst_id,
+            "name": full_name,
+            "email": email,
+            "role": catalyst_role,
+            "badge_number": f"AUTO-{catalyst_id[:8]}",
+            "status": "ACTIVE",
+        }
         
-        new_officer = await OfficerRepository.create(session, new_officer_data)
-        return new_officer
+        created_officer = await self.repo.create(new_officer_data)
+        logger.info(f"Provisioned new officer for Catalyst user {catalyst_id}")
+        return created_officer

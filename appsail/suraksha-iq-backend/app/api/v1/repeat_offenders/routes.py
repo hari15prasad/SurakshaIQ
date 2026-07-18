@@ -1,43 +1,29 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from neo4j import AsyncSession
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
-from app.database.neo4j.connection import get_neo4j_session
-from app.models.officer import Officer
 from app.api.deps import get_current_officer
-from app.schemas.offender import RepeatOffenderResponse, OffenderSummary
-from app.graph.link_analysis.offender_graph_repo import OffenderGraphRepository
+from app.repositories.criminal_repo import CriminalRepository
+from app.schemas.criminal import CriminalResponse
 
 router = APIRouter()
 
 @router.get(
     "/",
-    response_model=RepeatOffenderResponse,
+    response_model=List[CriminalResponse],
     summary="Get Repeat Offenders",
-    description="Retrieves a paginated list of repeat offenders based on graph analysis."
+    description="Retrieves a paginated list of repeat offenders from Catalyst Data Store."
 )
 async def get_repeat_offenders(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Items per page"),
-    neo4j_session: Optional[AsyncSession] = Depends(get_neo4j_session),
-    current_user: Officer = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Retrieves repeat offenders from Catalyst Data Store."""
     try:
-        skip = (page - 1) * size
-        repo = OffenderGraphRepository(neo4j_session)
-        
-        # We don't apply strict jurisdiction filtering on offenders yet since 
-        # graph nodes typically represent state-wide identities, but this could be
-        # scoped by the crimes they are linked to if needed.
-        
-        offenders, total_count = await repo.get_repeat_offenders(skip=skip, limit=size)
-        
-        return RepeatOffenderResponse(
-            data=offenders,
-            total=total_count,
-            page=page,
-            size=size
-        )
+        offset = (page - 1) * size
+        repo = CriminalRepository()
+        offenders = await repo.find_active(limit=size, offset=offset)
+        return [CriminalResponse.model_validate(o) for o in offenders]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -46,26 +32,26 @@ async def get_repeat_offenders(
 
 @router.get(
     "/{offender_id}",
-    response_model=OffenderSummary,
+    response_model=CriminalResponse,
     summary="Get Repeat Offender Details",
-    description="Retrieves detailed graph link information for a specific repeat offender."
+    description="Retrieves detailed information for a specific offender."
 )
 async def get_offender_details(
     offender_id: str,
-    neo4j_session: Optional[AsyncSession] = Depends(get_neo4j_session),
-    current_user: Officer = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Retrieves offender details from Catalyst Data Store."""
     try:
-        repo = OffenderGraphRepository(neo4j_session)
-        offender = await repo.get_offender_by_id(offender_id)
-        
+        repo = CriminalRepository()
+        offender = await repo.find_by_id(offender_id)
+
         if not offender:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Offender not found"
             )
-            
-        return offender
+
+        return CriminalResponse.model_validate(offender)
     except HTTPException:
         raise
     except Exception as e:

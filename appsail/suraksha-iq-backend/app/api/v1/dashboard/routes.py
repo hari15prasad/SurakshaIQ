@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
-from datetime import datetime
+from typing import Optional, Dict, Any
+from datetime import datetime, timezone, timedelta
 
-from app.database.postgres.connection import get_db
-from app.models.officer import Officer
-from app.schemas.dashboard import DashboardKPIsResponse, DashboardStatisticsResponse
-from app.repositories.dashboard_repo import DashboardRepository
 from app.api.deps import get_current_officer
-from app.models.enums import Permission
+from app.services.dashboard_service import DashboardService
+from app.schemas.dashboard import DashboardKPIsResponse, DashboardStatisticsResponse
+from app.schemas.forecast import ForecastResponse
+from app.analytics.prediction.trend_model import generate_trend_forecast
 
 router = APIRouter()
 
@@ -21,12 +19,12 @@ router = APIRouter()
 async def get_dashboard_kpis(
     start_date: Optional[datetime] = Query(None, description="Start date for KPI filtering (UTC)"),
     end_date: Optional[datetime] = Query(None, description="End date for KPI filtering (UTC)"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Officer = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Retrieves dashboard KPIs from Catalyst Data Store."""
     try:
-        repo = DashboardRepository(db)
-        kpis = await repo.get_kpis(current_user, start_date, end_date)
+        service = DashboardService()
+        kpis = await service.get_kpis(current_user, start_date, end_date)
         return kpis
     except Exception as e:
         raise HTTPException(
@@ -43,22 +41,18 @@ async def get_dashboard_kpis(
 async def get_dashboard_statistics(
     start_date: Optional[datetime] = Query(None, description="Start date for statistics filtering (UTC)"),
     end_date: Optional[datetime] = Query(None, description="End date for statistics filtering (UTC)"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Officer = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Retrieves dashboard statistics from Catalyst Data Store."""
     try:
-        repo = DashboardRepository(db)
-        stats = await repo.get_statistics(current_user, start_date, end_date)
+        service = DashboardService()
+        stats = await service.get_statistics(current_user, start_date, end_date)
         return stats
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch statistics: {str(e)}"
         )
-
-from app.schemas.forecast import ForecastResponse
-from app.analytics.prediction.trend_model import generate_trend_forecast
-from datetime import timezone, timedelta
 
 @router.get(
     "/forecast",
@@ -68,16 +62,15 @@ from datetime import timezone, timedelta
 )
 async def get_dashboard_forecast(
     horizon_days: int = Query(7, ge=1, le=30, description="Days to forecast into the future"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Officer = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer)
 ):
+    """Generates a crime trend forecast from Catalyst Data Store."""
     try:
-        # Use past 90 days as baseline for the SMA
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=90)
         
-        repo = DashboardRepository(db)
-        daily_counts = await repo.get_daily_counts(current_user, start_date, end_date)
+        service = DashboardService()
+        daily_counts = await service.get_daily_counts(current_user, start_date, end_date)
         
         forecast_points = generate_trend_forecast(daily_counts, horizon_days=horizon_days)
         

@@ -1,0 +1,48 @@
+from typing import List, Dict, Any, Optional
+from app.repositories.base_repository import BaseCatalystRepository
+from app.core.exceptions import RepositoryError
+from zcatalyst_sdk.exceptions import CatalystError
+from app.core.logger import logger
+
+class ReportRepository(BaseCatalystRepository):
+    """
+    Repository for Report entity backed by Catalyst Data Store.
+    """
+    def __init__(self):
+        super().__init__(table_name="Report")
+
+    async def find_recent(self, limit: int = 10, offset: int = 0, sort_by: str = "CREATEDTIME", sort_order: str = "DESC") -> List[Dict[str, Any]]:
+        """Retrieves recent reports."""
+        try:
+            offset_val = offset if offset > 0 else 1
+            query = f"SELECT * FROM {self.table_name} ORDER BY {sort_by} {sort_order} LIMIT {offset_val}, {limit}"
+            result = self.zcql.execute_query(query)
+            
+            rows = []
+            for item in result:
+                if self.table_name in item:
+                    rows.append(item[self.table_name])
+            return rows
+        except CatalystError as e:
+            logger.error(f"Error fetching recent reports: {e}")
+            raise RepositoryError(f"Failed to fetch recent reports: {e}")
+
+    async def search(self, search_term: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Performs a text search on report name or type."""
+        try:
+            query = (
+                f"SELECT * FROM {self.table_name} "
+                f"WHERE name LIKE '%{search_term}%' "
+                f"OR report_type LIKE '%{search_term}%' "
+                f"LIMIT {limit}"
+            )
+            result = self.zcql.execute_query(query)
+            
+            rows = []
+            for item in result:
+                if self.table_name in item:
+                    rows.append(item[self.table_name])
+            return rows
+        except CatalystError as e:
+            logger.error(f"Error searching reports with term '{search_term}': {e}")
+            raise RepositoryError(f"Failed to search reports: {e}")
