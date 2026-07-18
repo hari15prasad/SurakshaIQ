@@ -1,0 +1,9 @@
+{
+  "name": "suraksha-iq-client",
+  "version": "0.0.1",
+  "homepage": "index.html",
+  "build": {
+    "command": "npm run build",
+    "output": "build"
+  }
+}
