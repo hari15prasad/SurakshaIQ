@@ -3,74 +3,128 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone, timedelta
 
 from app.api.deps import get_current_officer
-from app.repositories.crime_repo import CrimeRepository
-from app.schemas.hotspot import HotspotResponse
-from app.schemas.prediction import HotspotPredictionResponse
+from app.services.hotspot_service import HotspotService
+from app.schemas.hotspot import (
+    HotspotResponse,
+    DistrictHotspotResponse,
+    StationHotspotResponse,
+    HotspotSummaryResponse,
+)
 
 router = APIRouter()
 
+
 @router.get(
     "/",
-    response_model=HotspotResponse,
+    response_model=List[HotspotResponse],
     summary="Get Crime Hotspots",
-    description="Retrieves geographic clusters of crimes scoped by jurisdiction."
+    description="Retrieves hotspot records with optional filters.",
 )
 async def get_hotspots(
+    district_id: Optional[str] = Query(None, description="Filter by district ID"),
+    station_id: Optional[str] = Query(None, description="Filter by police station ID"),
+    crime_type: Optional[str] = Query(None, description="Filter by crime type"),
+    status: Optional[str] = Query(None, description="Filter by status"),
     start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
     end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
-    current_user: Dict[str, Any] = Depends(get_current_officer)
+    limit: int = Query(100, ge=1, le=500),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
 ):
     """Retrieves hotspot data from Catalyst Data Store."""
     try:
-        if not end_date:
-            end_date = datetime.now(timezone.utc)
-        if not start_date:
-            start_date = end_date - timedelta(days=30)
-
-        repo = CrimeRepository()
-        crimes = await repo.find_all(limit=10000)
-
-        # Import clustering logic
-        from app.analytics.hotspot.clustering import generate_grid_clusters
-        clusters = generate_grid_clusters(crimes)
-
-        return HotspotResponse(
-            clusters=clusters,
+        service = HotspotService()
+        hotspots = await service.get_hotspots(
+            current_user,
+            district_id=district_id,
+            station_id=station_id,
+            crime_type=crime_type,
+            status=status,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            limit=limit,
         )
+        return hotspots
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch hotspots: {str(e)}"
         )
 
+
 @router.get(
-    "/predict",
-    response_model=HotspotPredictionResponse,
-    summary="Predict Emerging Hotspots",
-    description="Predicts future crime hotspots based on recent trend momentum."
+    "/districts",
+    response_model=List[DistrictHotspotResponse],
+    summary="Get District Hotspots",
+    description="Retrieves hotspot summary per district.",
 )
-async def get_hotspot_predictions(
-    current_user: Dict[str, Any] = Depends(get_current_officer)
+async def get_district_hotspots(
+    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
 ):
-    """Generates hotspot predictions from Catalyst Data Store."""
+    """Retrieves district hotspot summary from Catalyst Data Store."""
     try:
-        from app.analytics.hotspot.clustering import generate_grid_clusters
-        from app.analytics.prediction.hotspot_model import predict_hotspots
-
-        repo = CrimeRepository()
-        crimes = await repo.find_all(limit=10000)
-
-        current_clusters = generate_grid_clusters(crimes)
-        # Use same data as past baseline for momentum comparison
-        past_clusters = current_clusters
-
-        predictions = predict_hotspots(current_clusters, past_clusters, timeframe_days=7)
-
-        return HotspotPredictionResponse(predictions=predictions)
+        service = HotspotService()
+        hotspots = await service.get_district_hotspots(current_user, start_date=start_date, end_date=end_date)
+        return hotspots
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to predict hotspots: {str(e)}"
+            detail=f"Failed to fetch district hotspots: {str(e)}"
         )
+
+
+@router.get(
+    "/stations",
+    response_model=List[StationHotspotResponse],
+    summary="Get Station Hotspots",
+    description="Retrieves hotspot summary per police station.",
+)
+async def get_station_hotspots(
+    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves station hotspot summary from Catalyst Data Store."""
+    try:
+        service = HotspotService()
+        hotspots = await service.get_station_hotspots(current_user, start_date=start_date, end_date=end_date)
+        return hotspots
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch station hotspots: {str(e)}"
+        )
+
+
+@router.get(
+    "/top",
+    response_model=List[HotspotResponse],
+    summary="Get Top Hotspots",
+    description="Returns the highest-ranked hotspots.",
+)
+async def get_top_hotspots(
+    limit: int = Query(10, ge=1, le=100),
+    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves top hotspots from Catalyst Data Store."""
+    try:
+        service = HotspotService()
+        hotspots = await service.get_top_hotspots(current_user, limit=limit, start_date=start_date, end_date=end_date)
+        return hotspots
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch top hotspots: {str(e)}"
+        )
+

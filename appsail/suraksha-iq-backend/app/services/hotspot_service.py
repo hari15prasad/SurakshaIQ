@@ -1,103 +1,251 @@
-from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
-
-from app.repositories.crime_repo import CrimeRepository
-from app.schemas.hotspot import HotspotResponse, HotspotCluster
-from app.schemas.prediction import HotspotPredictionResponse
-from app.analytics.prediction.hotspot_model import predict_hotspots
-from collections import defaultdict
-
-
-class _CrimePoint:
-    """Adapter for analytics functions expecting attribute-based crime rows."""
-
-    def __init__(self, row: Dict[str, Any]):
-        self.latitude = row.get("latitude")
-        self.longitude = row.get("longitude")
-        self.crime_type = row.get("crime_type", "UNKNOWN")
+from datetime import datetime, timezone, timedelta
+from app.repositories.hotspot_repo import HotspotRepository
+from app.repositories.district_repo import DistrictRepository
+from app.repositories.police_station_repo import PoliceStationRepository
+from app.repositories.fir_repo import FIRRepository
+from app.core.logger import logger
+from app.schemas.hotspot import (
+    HotspotResponse,
+    DistrictHotspotResponse,
+    StationHotspotResponse,
+    HotspotSummaryResponse,
+)
 
 
 class HotspotService:
-    """Hotspot clustering and prediction over Catalyst crime records."""
+    """Service layer for hotspot analysis."""
 
-    def __init__(self, crime_repo: CrimeRepository | None = None):
-        self.crime_repo = crime_repo or CrimeRepository()
+    SEVERITY_ORDER = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+
+    def __init__(self):
+        self.repo = HotspotRepository()
+        self.district_repo = DistrictRepository()
+        self.station_repo = PoliceStationRepository()
+        self.fir_repo = FIRRepository()
 
     async def get_hotspots(
         self,
         officer: Dict[str, Any],
+        district_id: Optional[str] = None,
+        station_id: Optional[str] = None,
+        crime_type: Optional[str] = None,
+        status: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-    ) -> HotspotResponse:
+        limit: int = 100,
+    ) -> List[HotspotResponse]:
+        """Retrieves hotspot records with filters."""
         del officer
         if not end_date:
             end_date = datetime.now(timezone.utc)
         if not start_date:
             start_date = end_date - timedelta(days=30)
 
-        crimes = await self.crime_repo.find_all(limit=10000)
-        clusters = self._generate_grid_clusters(crimes)
+        date_from = start_date.strftime("%Y-%m-%dT%H:%M:%SZ") if start_date else None
+        date_to = end_date.strftime("%Y-%m-%dT%H:%M:%SZ") if end_date else None
 
-        return HotspotResponse(
-            clusters=clusters,
-            start_date=start_date,
-            end_date=end_date,
+        crimes = await self.repo.find_filtered(
+            district_id=district_id,
+            station_id=station_id,
+            crime_type=crime_type,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
         )
 
-    async def predict_hotspots(self, officer: Dict[str, Any]) -> HotspotPredictionResponse:
-        del officer
-        crimes = await self.crime_repo.find_all(limit=10000)
-        current_clusters = self._generate_grid_clusters(crimes)
-        past_clusters = current_clusters
-        predictions = predict_hotspots(current_clusters, past_clusters, timeframe_days=7)
-        return HotspotPredictionResponse(predictions=predictions)
+        district_map: Dict[str, Dict[str, Any]] = {}
+        for c in crimes:
+            did = c.get("district_id", "UNKNOWN")
+            sid = c.get("station_id", "UNKNOWN")
+            key = f"{did}:{sid}"
+            if key not in district_map:
+                district_map[key] = {
+                    "district_id": did,
+                    "police_station": sid,
+                    "crime_count": 0,
+                    "latest_date": None,
+                    "statuses": [],
+                }
+            entry = district_map[key]
+            entry["crime_count"] += 1
+            created = c.get("CREATEDTIME", "")
+            if created and (entry["latest_date"] is None or created > entry["latest_date"]):
+                entry["latest_date"] = created
+            entry["statuses"].append(c.get("status", "ACTIVE"))
 
-    def _generate_grid_clusters(
-        self, crimes: List[Dict[str, Any]], grid_precision: int = 2
-    ) -> List[HotspotCluster]:
-        clusters_map: Dict[str, Dict[str, Any]] = defaultdict(
-            lambda: {
-                "lat_sum": 0.0,
-                "lon_sum": 0.0,
-                "crime_count": 0,
-                "crime_types": defaultdict(int),
-            }
-        )
-
-        for row in crimes:
-            crime = _CrimePoint(row)
-            if crime.latitude is None or crime.longitude is None:
-                continue
-
-            grid_lat = round(float(crime.latitude), grid_precision)
-            grid_lon = round(float(crime.longitude), grid_precision)
-            grid_key = f"{grid_lat}_{grid_lon}"
-
-            clusters_map[grid_key]["lat_sum"] += float(crime.latitude)
-            clusters_map[grid_key]["lon_sum"] += float(crime.longitude)
-            clusters_map[grid_key]["crime_count"] += 1
-            clusters_map[grid_key]["crime_types"][crime.crime_type] += 1
-
-        results: List[HotspotCluster] = []
-        for key, data in clusters_map.items():
-            count = data["crime_count"]
-            centroid_lat = data["lat_sum"] / count
-            centroid_lon = data["lon_sum"] / count
-            sorted_types = sorted(data["crime_types"].items(), key=lambda x: x[1], reverse=True)
-            primary_types = [t[0] for t in sorted_types[:3]]
-            radius = 500.0 + (min(count, 100) * 10)
-            intensity = min((count / 10.0) * 100, 100.0)
-
+        results: List[HotspotResponse] = []
+        for key, entry in district_map.items():
+            score = self._compute_hotspot_score(entry["crime_count"], entry["latest_date"], entry["statuses"])
+            severity = self._determine_severity(score)
             results.append(
-                HotspotCluster(
+                HotspotResponse(
                     id=key,
-                    latitude=centroid_lat,
-                    longitude=centroid_lon,
-                    radius_meters=radius,
-                    intensity_score=round(intensity, 1),
-                    crime_count=count,
-                    primary_crime_types=primary_types,
+                    district=entry["district_id"],
+                    police_station=entry["police_station"],
+                    crime_count=entry["crime_count"],
+                    hotspot_score=round(score, 2),
+                    severity=severity,
+                    latest_crime_date=entry["latest_date"],
                 )
             )
 
-        return sorted(results, key=lambda x: x.intensity_score, reverse=True)
+        return sorted(results, key=lambda x: x.hotspot_score, reverse=True)
+
+    async def get_district_hotspots(
+        self,
+        officer: Dict[str, Any],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[DistrictHotspotResponse]:
+        """Retrieves hotspot summary per district."""
+        del officer
+        if not end_date:
+            end_date = datetime.now(timezone.utc)
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+
+        date_from = start_date.strftime("%Y-%m-%dT%H:%M:%SZ") if start_date else None
+        date_to = end_date.strftime("%Y-%m-%dT%H:%M:%SZ") if end_date else None
+
+        districts = await self.district_repo.find_active(limit=1000)
+        results: List[DistrictHotspotResponse] = []
+
+        for d in districts:
+            did = d.get("ROWID", d.get("id", ""))
+            dname = d.get("name", did)
+            crimes = await self.repo.count_by_district(did, date_from=date_from, date_to=date_to)
+            firs = await self.fir_repo.count_by_status("ACTIVE")
+
+            score = self._compute_hotspot_score(crimes, None, [])
+            trend = self._compute_trend(crimes)
+
+            results.append(
+                DistrictHotspotResponse(
+                    district_id=did,
+                    district_name=dname,
+                    total_crimes=crimes,
+                    hotspot_score=round(score, 2),
+                    active_firs=firs,
+                    trend=trend,
+                )
+            )
+
+        return sorted(results, key=lambda x: x.hotspot_score, reverse=True)
+
+    async def get_station_hotspots(
+        self,
+        officer: Dict[str, Any],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[StationHotspotResponse]:
+        """Retrieves hotspot summary per police station."""
+        del officer
+        if not end_date:
+            end_date = datetime.now(timezone.utc)
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+
+        date_from = start_date.strftime("%Y-%m-%dT%H:%M:%SZ") if start_date else None
+        date_to = end_date.strftime("%Y-%m-%dT%H:%M:%SZ") if end_date else None
+
+        stations = await self.station_repo.find_active(limit=1000)
+        results: List[StationHotspotResponse] = []
+
+        for s in stations:
+            sid = s.get("ROWID", s.get("id", ""))
+            sname = s.get("name", sid)
+            did = s.get("district_id", "UNKNOWN")
+            dname = s.get("district_name", did)
+            crimes = await self.repo.count_by_station(sid, date_from=date_from, date_to=date_to)
+            firs = await self.fir_repo.count_by_status("ACTIVE")
+
+            score = self._compute_hotspot_score(crimes, None, [])
+            results.append(
+                StationHotspotResponse(
+                    station_id=sid,
+                    station_name=sname,
+                    district_id=did,
+                    district_name=dname,
+                    crime_count=crimes,
+                    hotspot_score=round(score, 2),
+                    active_firs=firs,
+                )
+            )
+
+        return sorted(results, key=lambda x: x.hotspot_score, reverse=True)
+
+    async def get_top_hotspots(
+        self,
+        officer: Dict[str, Any],
+        limit: int = 10,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[HotspotResponse]:
+        """Returns the top-ranked hotspots."""
+        return await self.get_hotspots(
+            officer,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )
+
+    async def get_summary(
+        self,
+        officer: Dict[str, Any],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> HotspotSummaryResponse:
+        """Returns aggregated hotspot summary counts."""
+        hotspots = await self.get_hotspots(officer, start_date=start_date, end_date=end_date, limit=1000)
+        high = sum(1 for h in hotspots if h.severity == "HIGH")
+        medium = sum(1 for h in hotspots if h.severity == "MEDIUM")
+        low = sum(1 for h in hotspots if h.severity == "LOW")
+        return HotspotSummaryResponse(
+            total_hotspots=len(hotspots),
+            high_severity_count=high,
+            medium_severity_count=medium,
+            low_severity_count=low,
+        )
+
+    def _compute_hotspot_score(self, crime_count: int, latest_date: Optional[str], statuses: List[str]) -> float:
+        """Computes a deterministic hotspot score."""
+        frequency_score = crime_count * 10.0
+
+        recency_score = 0.0
+        if latest_date:
+            try:
+                dt = datetime.strptime(latest_date[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                days_ago = (datetime.now(timezone.utc) - dt).days
+                if days_ago <= 7:
+                    recency_score = 30.0
+                elif days_ago <= 30:
+                    recency_score = 20.0
+                elif days_ago <= 90:
+                    recency_score = 10.0
+            except (ValueError, TypeError):
+                recency_score = 0.0
+
+        severity_score = 0.0
+        active_count = sum(1 for s in statuses if s == "ACTIVE")
+        if active_count:
+            severity_score = min(active_count * 5.0, 40.0)
+
+        return frequency_score + recency_score + severity_score
+
+    def _determine_severity(self, score: float) -> str:
+        """Determines severity label from hotspot score."""
+        if score >= 100.0:
+            return "HIGH"
+        if score >= 50.0:
+            return "MEDIUM"
+        return "LOW"
+
+    def _compute_trend(self, count: int) -> str:
+        """Computes a simple trend string based on count."""
+        if count >= 10:
+            return "rising"
+        if count >= 5:
+            return "stable"
+        return "declining"
