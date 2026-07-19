@@ -85,14 +85,24 @@ export const router = createBrowserRouter([
                   { path: 'risk-scoring', element: lazy(() => import('features/risk-scoring/pages/RiskScoring')) },
                 ],
               },
-              {
-                element: <RoleProtectedRoute roles={MODULE_ROLES.alerts} />,
-                children: [{ path: 'alerts', element: lazy(() => import('features/alerts/pages/Alerts')) }],
-              },
-              {
-                element: <RoleProtectedRoute roles={MODULE_ROLES.reports} />,
-                children: [{ path: 'reports', element: lazy(() => import('features/reports/pages/Reports')) }],
-              },
+               {
+                 element: <RoleProtectedRoute roles={MODULE_ROLES.alerts} />,
+                 children: [{ path: 'alerts', element: lazy(() => import('features/alerts/pages/Alerts')) }],
+               },
+               {
+                 element: <RoleProtectedRoute roles={MODULE_ROLES.reports} />,
+                 children: [{ path: 'reports', element: lazy(() => import('features/reports/pages/Reports')) }],
+               },
+               {
+                 element: <RoleProtectedRoute roles={MODULE_ROLES['risk-scoring']} />,
+                 children: [
+                   { path: 'risk-scoring', element: lazy(() => import('features/risk-scoring/pages/RiskScoring')) },
+                 ],
+               },
+               {
+                 path: 'search',
+                 element: lazy(() => import('features/search/pages/Search')),
+               },
               {
                 element: <RoleProtectedRoute roles={MODULE_ROLES.admin} />,
                 children: [{ path: 'admin', element: lazy(() => import('features/admin/pages/Admin')) }],

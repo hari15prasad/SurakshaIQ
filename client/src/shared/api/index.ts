@@ -44,3 +44,5 @@ export { crimesApi } from './crimesApi';
 export type { Crime, CrimeCreate, CrimeUpdate, CrimeFilters } from './crimesApi';
 export { firsApi } from './firsApi';
 export type { Fir, FirCreate, FirUpdate, FirFilters } from './firsApi';
+export { searchApi } from './searchApi';
+export type { SearchResult, SearchResponse, SearchSuggestion, SearchFilters, SearchParams } from './searchApi';

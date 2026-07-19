@@ -12,7 +12,8 @@ export type ModuleKey =
   | 'reports'
   | 'admin'
   | 'crime-management'
-  | 'fir-management';
+  | 'fir-management'
+  | 'search';
 
 export interface NavItem {
   module: ModuleKey;
@@ -114,6 +115,15 @@ export const MODULE_ROLES: Record<ModuleKey, UserRole[]> = {
     'SYSTEM_ADMINISTRATOR',
   ],
   'fir-management': [
+    'STATE_COMMAND',
+    'RANGE_IG',
+    'DISTRICT_SP',
+    'STATION_HOUSE_OFFICER',
+    'INVESTIGATING_OFFICER',
+    'CID_ANALYST',
+    'SYSTEM_ADMINISTRATOR',
+  ],
+  search: [
     'STATE_COMMAND',
     'RANGE_IG',
     'DISTRICT_SP',
