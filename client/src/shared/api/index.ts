@@ -37,7 +37,7 @@ export type { Report } from './reportsApi';
 export { adminApi } from './adminApi';
 export type { AdminUser, AlertRule } from './adminApi';
 export { dashboardApi } from './dashboardApi';
-export type { DashboardSummary, DashboardMetric } from './dashboardApi';
+export type { DashboardSummary, DashboardMetric, SummaryResponse, RecentCrimeResponse, RecentFirResponse, CrimeTrendResponse, DistrictSummaryResponse } from './dashboardApi';
 export { profileApi } from './profileApi';
 export type { OfficerProfileResponse } from './profileApi';
 export { crimesApi } from './crimesApi';
