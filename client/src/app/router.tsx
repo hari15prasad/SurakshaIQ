@@ -98,6 +98,10 @@ export const router = createBrowserRouter([
                 children: [{ path: 'admin', element: lazy(() => import('features/admin/pages/Admin')) }],
               },
               {
+                element: <RoleProtectedRoute roles={MODULE_ROLES['crime-management']} />,
+                children: [{ path: 'crimes', element: lazy(() => import('features/crime-management/pages/CrimeManagement')) }],
+              },
+              {
                 path: 'district/:districtId',
                 element: lazy(() => import('features/district-comparison/pages/DistrictDetail')),
               },

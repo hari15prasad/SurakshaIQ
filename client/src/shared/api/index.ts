@@ -40,3 +40,5 @@ export { dashboardApi } from './dashboardApi';
 export type { DashboardSummary, DashboardMetric } from './dashboardApi';
 export { profileApi } from './profileApi';
 export type { OfficerProfileResponse } from './profileApi';
+export { crimesApi } from './crimesApi';
+export type { Crime, CrimeCreate, CrimeUpdate, CrimeFilters } from './crimesApi';

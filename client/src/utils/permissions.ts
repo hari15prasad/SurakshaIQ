@@ -10,7 +10,8 @@ export type ModuleKey =
   | 'risk-scoring'
   | 'alerts'
   | 'reports'
-  | 'admin';
+  | 'admin'
+  | 'crime-management';
 
 export interface NavItem {
   module: ModuleKey;
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
   { module: 'alerts', label: 'Alerts', path: '/alerts' },
   { module: 'reports', label: 'Reports', path: '/reports' },
   { module: 'admin', label: 'Administration', path: '/admin' },
+  { module: 'crime-management', label: 'Crime Management', path: '/crimes' },
 ];
 
 export const MODULE_ROLES: Record<ModuleKey, UserRole[]> = {
@@ -100,6 +102,15 @@ export const MODULE_ROLES: Record<ModuleKey, UserRole[]> = {
     'SYSTEM_ADMINISTRATOR',
   ],
   admin: ['SYSTEM_ADMINISTRATOR'],
+  'crime-management': [
+    'STATE_COMMAND',
+    'RANGE_IG',
+    'DISTRICT_SP',
+    'STATION_HOUSE_OFFICER',
+    'INVESTIGATING_OFFICER',
+    'CID_ANALYST',
+    'SYSTEM_ADMINISTRATOR',
+  ],
 };
 
 export function hasRole(officer: Officer | null, ...roles: UserRole[]): boolean {
