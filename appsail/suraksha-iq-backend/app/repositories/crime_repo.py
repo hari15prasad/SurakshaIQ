@@ -17,12 +17,7 @@ class CrimeRepository(BaseCatalystRepository):
             offset_val = offset if offset > 0 else 1
             query = f"SELECT * FROM {self.table_name} WHERE district_id = '{district_id}' ORDER BY {sort_by} {sort_order} LIMIT {offset_val}, {limit}"
             result = self.zcql.execute_query(query)
-            
-            rows = []
-            for item in result:
-                if self.table_name in item:
-                    rows.append(item[self.table_name])
-            return rows
+            return [item[self.table_name] for item in result if self.table_name in item]
         except CatalystError as e:
             logger.error(f"Error fetching crimes for district {district_id}: {e}")
             raise RepositoryError(f"Failed to fetch district crimes: {e}")
@@ -33,12 +28,7 @@ class CrimeRepository(BaseCatalystRepository):
             offset_val = offset if offset > 0 else 1
             query = f"SELECT * FROM {self.table_name} WHERE station_id = '{station_id}' ORDER BY {sort_by} {sort_order} LIMIT {offset_val}, {limit}"
             result = self.zcql.execute_query(query)
-            
-            rows = []
-            for item in result:
-                if self.table_name in item:
-                    rows.append(item[self.table_name])
-            return rows
+            return [item[self.table_name] for item in result if self.table_name in item]
         except CatalystError as e:
             logger.error(f"Error fetching crimes for station {station_id}: {e}")
             raise RepositoryError(f"Failed to fetch station crimes: {e}")
@@ -55,14 +45,8 @@ class CrimeRepository(BaseCatalystRepository):
             if district_id:
                 query += f" AND district_id = '{district_id}'"
             query += f" LIMIT {limit}"
-            
             result = self.zcql.execute_query(query)
-            
-            rows = []
-            for item in result:
-                if self.table_name in item:
-                    rows.append(item[self.table_name])
-            return rows
+            return [item[self.table_name] for item in result if self.table_name in item]
         except CatalystError as e:
             logger.error(f"Error searching crimes with term '{search_term}': {e}")
             raise RepositoryError(f"Failed to search crimes: {e}")
@@ -85,7 +69,6 @@ class CrimeRepository(BaseCatalystRepository):
         try:
             offset_val = offset if offset > 0 else 1
             query = f"SELECT * FROM {self.table_name} WHERE 1=1"
-            
             if keyword:
                 query += f" AND (title LIKE '%{keyword}%' OR description LIKE '%{keyword}%' OR crime_type LIKE '%{keyword}%')"
             if district_id:
@@ -100,16 +83,9 @@ class CrimeRepository(BaseCatalystRepository):
                 query += f" AND CREATEDTIME >= '{date_from}'"
             if date_to:
                 query += f" AND CREATEDTIME <= '{date_to}'"
-            
             query += f" ORDER BY {sort_by} {sort_order} LIMIT {offset_val}, {limit}"
-            
             result = self.zcql.execute_query(query)
-            
-            rows = []
-            for item in result:
-                if self.table_name in item:
-                    rows.append(item[self.table_name])
-            return rows
+            return [item[self.table_name] for item in result if self.table_name in item]
         except CatalystError as e:
             logger.error(f"Error fetching filtered crimes: {e}")
             raise RepositoryError(f"Failed to fetch filtered crimes: {e}")
@@ -133,3 +109,16 @@ class CrimeRepository(BaseCatalystRepository):
         except CatalystError as e:
             logger.error(f"Error counting crimes by date range: {e}")
             raise RepositoryError(f"Failed to count crimes by date range: {e}")
+
+    async def check_duplicate(self, title: str, district_id: str, station_id: str, exclude_id: Optional[str] = None) -> bool:
+        """Checks if a duplicate crime exists."""
+        try:
+            query = f"SELECT ROWID FROM {self.table_name} WHERE title = '{title}' AND district_id = '{district_id}' AND station_id = '{station_id}'"
+            if exclude_id:
+                query += f" AND ROWID != '{exclude_id}'"
+            query += " LIMIT 1"
+            result = await self.zcql.execute_query(query)
+            return len(result) > 0
+        except CatalystError as e:
+            logger.error(f"Error checking duplicate crime: {e}")
+            raise RepositoryError(f"Failed to check duplicate crime: {e}")

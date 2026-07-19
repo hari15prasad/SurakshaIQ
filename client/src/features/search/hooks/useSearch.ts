@@ -6,7 +6,7 @@ export function useSearch(params: SearchParams) {
     queryKey: ['search', params],
     queryFn: () => searchApi.search(params).then((res) => res.data),
     enabled: !!params.keyword && params.keyword.length > 0,
-    staleTime: 30_000,
+    staleTime: 1000 * 60 * 2,
   });
 }
 
@@ -15,7 +15,7 @@ export function useSearchSuggestions(keyword: string) {
     queryKey: ['search', 'suggestions', keyword],
     queryFn: () => searchApi.suggestions(keyword).then((res) => res.data),
     enabled: !!keyword && keyword.length > 0,
-    staleTime: 30_000,
+    staleTime: 1000 * 30,
   });
 }
 
@@ -23,7 +23,7 @@ export function useSearchFilters() {
   return useQuery({
     queryKey: ['search', 'filters'],
     queryFn: () => searchApi.filters().then((res) => res.data),
-    staleTime: 300_000,
+    staleTime: 1000 * 60 * 5,
   });
 }
 

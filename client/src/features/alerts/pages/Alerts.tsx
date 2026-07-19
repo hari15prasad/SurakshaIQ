@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Card, DataTable, KpiCard, LoadingSkeleton, EmptyState, AlertBanner, Modal, Badge, Button } from 'shared/components';
 import type { DataTableColumn } from 'shared/components';
 import { useAlerts, useAlertSummary, useActiveAlerts, useAcknowledgeAlert, useResolveAlert } from 'features/alerts/hooks/useAlerts';
@@ -43,7 +43,7 @@ const Alerts: React.FC = () => {
   const activeAlertList = useMemo(() => activeAlerts ?? [], [activeAlerts]);
   const alertList = useMemo(() => alerts ?? [], [alerts]);
 
-  const columns: DataTableColumn<AlertRecord>[] = [
+  const columns = useMemo<DataTableColumn<AlertRecord>[]>(() => [
     { key: 'title', header: 'Title', render: (r) => r.title },
     {
       key: 'severity',
@@ -103,9 +103,9 @@ const Alerts: React.FC = () => {
         </div>
       ),
     },
-  ];
+  ], [acknowledgingId, resolvingId]);
 
-  const handleAcknowledge = async (alert: AlertRecord) => {
+  const handleAcknowledge = useCallback(async (alert: AlertRecord) => {
     setAcknowledgingId(alert.ROWID);
     try {
       await acknowledgeMutation.mutateAsync(alert.ROWID);
@@ -116,9 +116,9 @@ const Alerts: React.FC = () => {
     } finally {
       setAcknowledgingId(null);
     }
-  };
+  }, [acknowledgeMutation]);
 
-  const handleResolve = async (alert: AlertRecord) => {
+  const handleResolve = useCallback(async (alert: AlertRecord) => {
     setResolvingId(alert.ROWID);
     try {
       await resolveMutation.mutateAsync(alert.ROWID);
@@ -129,11 +129,11 @@ const Alerts: React.FC = () => {
     } finally {
       setResolvingId(null);
     }
-  };
+  }, [resolveMutation]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({ severity: '', status: '' });
-  };
+  }, []);
 
   if (alertsError) {
     return (

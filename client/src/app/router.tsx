@@ -94,19 +94,13 @@ export const router = createBrowserRouter([
                  children: [{ path: 'reports', element: lazy(() => import('features/reports/pages/Reports')) }],
                },
                {
-                 element: <RoleProtectedRoute roles={MODULE_ROLES['risk-scoring']} />,
-                 children: [
-                   { path: 'risk-scoring', element: lazy(() => import('features/risk-scoring/pages/RiskScoring')) },
-                 ],
-               },
-               {
                  path: 'search',
                  element: lazy(() => import('features/search/pages/Search')),
                },
-              {
-                element: <RoleProtectedRoute roles={MODULE_ROLES.admin} />,
-                children: [{ path: 'admin', element: lazy(() => import('features/admin/pages/Admin')) }],
-              },
+               {
+                 element: <RoleProtectedRoute roles={MODULE_ROLES.admin} />,
+                 children: [{ path: 'admin', element: lazy(() => import('features/admin/pages/Admin')) }],
+               },
               {
                 element: <RoleProtectedRoute roles={MODULE_ROLES['crime-management']} />,
                 children: [{ path: 'crimes', element: lazy(() => import('features/crime-management/pages/CrimeManagement')) }],

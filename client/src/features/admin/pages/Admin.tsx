@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Card, Tabs, DataTable, KpiCard, LoadingSkeleton, EmptyState, AlertBanner, Modal, Badge, Button, ConfirmDialog } from 'shared/components';
 import type { DataTableColumn } from 'shared/components';
 import { useUsers, useRoles, useAdminStatistics, useAuditLogs, useCreateUser, useUpdateUser, useDeleteUser, useActivateUser, useDeactivateUser } from 'features/admin/hooks/useAdmin';
@@ -56,7 +56,7 @@ const Admin: React.FC = () => {
   const userList = useMemo(() => users ?? [], [users]);
   const logsList = useMemo(() => auditLogs ?? [], [auditLogs]);
 
-  const userColumns: DataTableColumn<AdminUser>[] = [
+  const userColumns = useMemo<DataTableColumn<AdminUser>[]>(() => [
     { key: 'name', header: 'Name', sortable: true, sortValue: (r) => r.name, render: (r) => r.name },
     { key: 'email', header: 'Email', render: (r) => r.email },
     {
@@ -105,9 +105,9 @@ const Admin: React.FC = () => {
         </div>
       ),
     },
-  ];
+  ], [activateMutation, deactivateMutation]);
 
-  const auditColumns: DataTableColumn<AuditLog>[] = [
+  const auditColumns = useMemo<DataTableColumn<AuditLog>[]>(() => [
     { key: 'action', header: 'Action', render: (r) => r.action },
     { key: 'user', header: 'User', render: (r) => r.user },
     { key: 'target', header: 'Target', render: (r) => r.target },
@@ -116,9 +116,9 @@ const Admin: React.FC = () => {
       header: 'Timestamp',
       render: (r) => (r.timestamp ? new Date(r.timestamp).toLocaleString() : '-'),
     },
-  ];
+  ], []);
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     try {
       await createMutation.mutateAsync(userForm);
       toast.success('User created successfully');
@@ -127,9 +127,9 @@ const Admin: React.FC = () => {
     } catch {
       toast.error('Failed to create user');
     }
-  };
+  }, [createMutation, userForm]);
 
-  const handleUpdate = async () => {
+  const handleUpdate = useCallback(async () => {
     if (!editingUser) return;
     try {
       await updateMutation.mutateAsync({ id: editingUser.user_id, data: userForm });
@@ -140,9 +140,9 @@ const Admin: React.FC = () => {
     } catch {
       toast.error('Failed to update user');
     }
-  };
+  }, [editingUser, updateMutation, userForm]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!deletingUser) return;
     try {
       await deleteMutation.mutateAsync(deletingUser.user_id);
@@ -151,13 +151,13 @@ const Admin: React.FC = () => {
     } catch {
       toast.error('Failed to delete user');
     }
-  };
+  }, [deleteMutation, deletingUser]);
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setEditingUser(null);
     setUserForm({ ...emptyUser });
     setIsFormOpen(true);
-  };
+  }, []);
 
   if (usersError) {
     return (

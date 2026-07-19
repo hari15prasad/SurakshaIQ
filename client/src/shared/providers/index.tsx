@@ -48,6 +48,10 @@ function QueryProvider({ children }: { children: React.ReactNode }) {
             if (status === 401 || status === 403) return false;
             return failureCount < 1;
           },
+          refetchOnWindowFocus: false,
+        },
+        mutations: {
+          retry: false,
         },
       },
       queryCache: new QueryCache({ onError: handleError }),

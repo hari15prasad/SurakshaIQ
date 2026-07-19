@@ -5,7 +5,6 @@ export function useAlerts(filters?: AlertFilters) {
   return useQuery({
     queryKey: ['alerts', filters],
     queryFn: () => alertsApi.list(filters).then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -13,7 +12,6 @@ export function useAlertSummary() {
   return useQuery({
     queryKey: ['alerts', 'summary'],
     queryFn: () => alertsApi.getSummary().then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -21,7 +19,6 @@ export function useActiveAlerts(limit = 100, offset = 0) {
   return useQuery({
     queryKey: ['alerts', 'active', limit, offset],
     queryFn: () => alertsApi.getActive(limit, offset).then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -30,7 +27,6 @@ export function useAlert(id: string) {
     queryKey: ['alerts', id],
     queryFn: () => alertsApi.getById(id).then((res) => res.data),
     enabled: !!id,
-    staleTime: 30_000,
   });
 }
 

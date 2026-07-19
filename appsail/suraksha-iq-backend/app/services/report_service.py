@@ -116,7 +116,6 @@ class ReportService:
 
     async def generate_report(self, report_type: str, officer_id: str, parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Generates a report deterministically from existing data."""
-        logger.info(f"Generating report of type {report_type}")
         parameters = parameters or {}
         report_type_enum = ReportType(report_type)
 

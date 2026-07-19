@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Card, Tabs, DataTable, KpiCard, LoadingSkeleton, EmptyState, AlertBanner, Modal, Badge, Button, ConfirmDialog, MiniMap } from 'shared/components';
 import type { DataTableColumn } from 'shared/components';
 import { useReports, useReportSummary, useReportTypes, useGenerateReport, useDeleteReport } from 'features/reports/hooks/useReports';
@@ -39,7 +39,7 @@ const Reports: React.FC = () => {
 
   const reportList = useMemo(() => reports ?? [], [reports]);
 
-  const columns: DataTableColumn<ReportRecord>[] = [
+  const columns = useMemo<DataTableColumn<ReportRecord>[]>(() => [
     { key: 'name', header: 'Name', render: (r) => r.name },
     {
       key: 'report_type',
@@ -75,9 +75,9 @@ const Reports: React.FC = () => {
         </div>
       ),
     },
-  ];
+  ], []);
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!generateForm.name || !generateForm.report_type) {
       toast.error('Please provide report name and type');
       return;
@@ -97,9 +97,9 @@ const Reports: React.FC = () => {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [generateForm.name, generateForm.report_type, generateMutation]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (!deleteConfirmId) return;
     try {
       await deleteMutation.mutateAsync(deleteConfirmId);
@@ -109,7 +109,7 @@ const Reports: React.FC = () => {
     } catch {
       toast.error('Failed to delete report');
     }
-  };
+  }, [deleteConfirmId, deleteMutation]);
 
   if (reportsError) {
     return (

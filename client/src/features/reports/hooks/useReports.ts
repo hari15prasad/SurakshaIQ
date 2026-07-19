@@ -5,7 +5,6 @@ export function useReports(filters?: ReportFilters) {
   return useQuery({
     queryKey: ['reports', filters],
     queryFn: () => reportsApi.list(filters).then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -13,7 +12,6 @@ export function useReportSummary() {
   return useQuery({
     queryKey: ['reports', 'summary'],
     queryFn: () => reportsApi.getSummary().then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -21,7 +19,7 @@ export function useReportTypes() {
   return useQuery({
     queryKey: ['reports', 'types'],
     queryFn: () => reportsApi.getTypes().then((res) => res.data),
-    staleTime: 300_000,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -30,7 +28,6 @@ export function useReport(id: string) {
     queryKey: ['reports', id],
     queryFn: () => reportsApi.getById(id).then((res) => res.data),
     enabled: !!id,
-    staleTime: 30_000,
   });
 }
 

@@ -5,7 +5,6 @@ export function useUsers(filters?: UserFilters) {
   return useQuery({
     queryKey: ['admin', 'users', filters],
     queryFn: () => adminApi.users.list(filters).then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -14,7 +13,6 @@ export function useUser(userId: string) {
     queryKey: ['admin', 'users', userId],
     queryFn: () => adminApi.users.get(userId).then((res) => res.data),
     enabled: !!userId,
-    staleTime: 30_000,
   });
 }
 
@@ -83,7 +81,7 @@ export function useRoles() {
   return useQuery({
     queryKey: ['admin', 'roles'],
     queryFn: () => adminApi.roles.list().then((res) => res.data),
-    staleTime: 300_000,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -91,7 +89,6 @@ export function useAdminStatistics() {
   return useQuery({
     queryKey: ['admin', 'statistics'],
     queryFn: () => adminApi.statistics.get().then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 
@@ -99,7 +96,6 @@ export function useAuditLogs(filters?: { limit?: number; offset?: number }) {
   return useQuery({
     queryKey: ['admin', 'audit-logs', filters],
     queryFn: () => adminApi.auditLogs.list(filters).then((res) => res.data),
-    staleTime: 30_000,
   });
 }
 

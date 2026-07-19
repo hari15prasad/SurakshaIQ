@@ -46,19 +46,11 @@ class DashboardService:
         if not start_date:
             start_date = end_date - timedelta(days=30)
 
-        # Fetch all crimes via ZCQL (jurisdiction scoping done via district_id)
-        district_id = officer.get("station_id")  # scope by station if present
+        district_id = officer.get("station_id")
         all_crimes = await self.crime_repo.find_all(limit=10000)
 
-        # Filter by date range in Python (Catalyst ZCQL date filtering is limited)
-        current_crimes = []
-        for c in all_crimes:
-            created = c.get("CREATEDTIME", "")
-            if created:
-                current_crimes.append(c)
-
-        total_cases = len(current_crimes)
-        closed_cases = sum(1 for c in current_crimes if c.get("status") == "INACTIVE")
+        total_cases = len(all_crimes)
+        closed_cases = sum(1 for c in all_crimes if c.get("status") == "INACTIVE")
         resolution_rate = (closed_cases / total_cases * 100) if total_cases > 0 else 0.0
 
         return DashboardKPIsResponse(
@@ -78,7 +70,6 @@ class DashboardService:
         """Computes aggregated crime statistics from Catalyst Data Store."""
         all_crimes = await self.crime_repo.find_all(limit=10000)
 
-        # By Category
         category_counts: Dict[str, int] = {}
         status_counts: Dict[str, int] = {}
         district_counts: Dict[str, int] = {}
@@ -86,10 +77,8 @@ class DashboardService:
         for c in all_crimes:
             ct = c.get("crime_type", "UNKNOWN")
             category_counts[ct] = category_counts.get(ct, 0) + 1
-
             st = c.get("status", "ACTIVE")
             status_counts[st] = status_counts.get(st, 0) + 1
-
             did = c.get("district_id", "UNKNOWN")
             district_counts[did] = district_counts.get(did, 0) + 1
 
@@ -119,7 +108,7 @@ class DashboardService:
         for c in all_crimes:
             created = c.get("CREATEDTIME", "")
             if created:
-                day_key = created[:10]  # YYYY-MM-DD
+                day_key = created[:10]
                 day_counts[day_key] = day_counts.get(day_key, 0) + 1
 
         result: List[Tuple[datetime, int]] = []
