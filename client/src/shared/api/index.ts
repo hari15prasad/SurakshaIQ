@@ -33,7 +33,7 @@ export type { CaseRecord } from './casesApi';
 export { districtsApi } from './districtsApi';
 export type { DistrictSummary } from './districtsApi';
 export { reportsApi } from './reportsApi';
-export type { Report } from './reportsApi';
+export type { ReportRecord, ReportSummary, ReportTypeInfo, ReportFilters, GeneratedReportResponse } from './reportsApi';
 export { adminApi } from './adminApi';
 export type { AdminUser, AlertRule } from './adminApi';
 export { dashboardApi } from './dashboardApi';
