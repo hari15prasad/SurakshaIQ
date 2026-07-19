@@ -1,100 +1,130 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Dict, Any
-from datetime import datetime, timezone, timedelta
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from typing import Optional, Dict, Any, List
 
 from app.api.deps import get_current_officer
-from app.schemas.anomaly import AnomalyDetectionResponse
-from app.services.dashboard_service import DashboardService
-from app.analytics.anomaly.detector import detect_anomalies
-from app.repositories.alert_repo import AlertRepository
+from app.services.anomaly_service import AnomalyService
+from app.schemas.anomaly import Anomaly, AnomalySummary, DistrictAnomaly, StationAnomaly
 
 router = APIRouter()
 
+
 @router.get(
-    "/detect",
-    response_model=AnomalyDetectionResponse,
-    summary="Detect Anomalies",
-    description="Runs statistical anomaly detection over the jurisdiction's recent crime trends and syncs findings to Alerts."
+    "/",
+    response_model=List[Anomaly],
+    summary="Get Anomalies",
+    description="Retrieves detected anomalies for districts and police stations.",
 )
-async def run_anomaly_detection(
-    current_user: Dict[str, Any] = Depends(get_current_officer)
+async def get_anomalies(
+    limit: int = Query(100, ge=1, le=500),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
 ):
-    """Runs anomaly detection using Catalyst Data Store."""
+    """Retrieves anomalies from Catalyst Data Store."""
     try:
-        end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=30)
-
-        service = DashboardService()
-        daily_counts = await service.get_daily_counts(current_user, start_date, end_date)
-
-        district_id = current_user.get("station_id")
-        officer_role = current_user.get("role", "")
-        if officer_role == "STATE_COMMAND":
-            district_id = None
-
-        alert_repo = AlertRepository()
-        anomalies = await detect_anomalies_catalyst(alert_repo, district_id, daily_counts)
-
-        return AnomalyDetectionResponse(anomalies=anomalies)
+        service = AnomalyService()
+        anomalies = await service.get_anomalies(current_user, limit=limit)
+        return anomalies
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to run anomaly detection: {str(e)}"
+            detail=f"Failed to fetch anomalies: {str(e)}"
         )
 
 
-async def detect_anomalies_catalyst(alert_repo: AlertRepository, district_id, daily_counts):
-    """
-    Wrapper that calls the anomaly detector and persists alerts to Catalyst Data Store
-    instead of via SQLAlchemy.
-    """
-    import math
-    import uuid
-    from app.schemas.anomaly import AnomalyResult
-
-    anomalies = []
-
-    if len(daily_counts) < 7:
-        return anomalies
-
-    counts = [c for _, c in daily_counts]
-    current_count = counts[-1]
-
-    baseline_counts = counts[:-1]
-    mean = sum(baseline_counts) / len(baseline_counts)
-    variance = sum((x - mean) ** 2 for x in baseline_counts) / max(len(baseline_counts), 1)
-    std_dev = math.sqrt(variance)
-
-    threshold = mean + (2 * std_dev)
-
-    if current_count > threshold and current_count > 0:
-        severity = "HIGH" if current_count > mean + (3 * std_dev) else "MEDIUM"
-
-        anomaly = AnomalyResult(
-            id=str(uuid.uuid4()),
-            anomaly_type="CRIME_SPIKE",
-            severity=severity,
-            affected_scope=f"DISTRICT:{district_id}" if district_id else "STATEWIDE",
-            description=f"Unusual crime spike detected. Count {current_count} exceeds baseline mean {round(mean, 1)}.",
-            detection_timestamp=datetime.now(timezone.utc),
-            related_entity_id=district_id or "ALL"
-        )
-        anomalies.append(anomaly)
-
-        # Persist alert to Catalyst Data Store
-        existing = await alert_repo.find_active(limit=1)
-        already_exists = any(
-            a.get("district_id") == district_id and a.get("type") == "ANOMALY"
-            for a in existing
+@router.get(
+    "/summary",
+    response_model=AnomalySummary,
+    summary="Get Anomaly Summary",
+    description="Retrieves aggregated anomaly summary.",
+)
+async def get_anomaly_summary(
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves anomaly summary from Catalyst Data Store."""
+    try:
+        service = AnomalyService()
+        summary = await service.get_summary(current_user)
+        return summary
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch anomaly summary: {str(e)}"
         )
 
-        if not already_exists:
-            await alert_repo.create({
-                "type": "ANOMALY",
-                "severity": severity,
-                "status": "ACTIVE",
-                "message": anomaly.description,
-                "district_id": district_id or "",
-            })
 
-    return anomalies
+@router.get(
+    "/districts",
+    response_model=List[DistrictAnomaly],
+    summary="Get District Anomalies",
+    description="Retrieves anomalies for all districts.",
+)
+async def get_district_anomalies(
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves district anomalies from Catalyst Data Store."""
+    try:
+        service = AnomalyService()
+        districts = await service.get_district_anomalies(current_user)
+        return districts
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch district anomalies: {str(e)}"
+        )
+
+
+@router.get(
+    "/stations",
+    response_model=List[StationAnomaly],
+    summary="Get Station Anomalies",
+    description="Retrieves anomalies for all police stations.",
+)
+async def get_station_anomalies(
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves station anomalies from Catalyst Data Store."""
+    try:
+        service = AnomalyService()
+        stations = await service.get_station_anomalies(current_user)
+        return stations
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch station anomalies: {str(e)}"
+        )
+
+
+@router.get(
+    "/{anomaly_id}",
+    response_model=Anomaly,
+    summary="Get Anomaly Details",
+    description="Retrieves details for a specific anomaly.",
+)
+async def get_anomaly(
+    anomaly_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves anomaly details from Catalyst Data Store."""
+    try:
+        service = AnomalyService()
+        anomaly = await service.get_anomaly(current_user, anomaly_id)
+        if not anomaly:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Anomaly not found"
+            )
+        return anomaly
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch anomaly: {str(e)}"
+        )

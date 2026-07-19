@@ -1,20 +1,60 @@
 from pydantic import BaseModel, ConfigDict
-from typing import List
-from datetime import datetime
+from typing import List, Optional
 
-class AnomalyResult(BaseModel):
-    id: str
-    anomaly_type: str # e.g. "CRIME_SPIKE"
-    severity: str # HIGH, MEDIUM, LOW
-    affected_scope: str # e.g. "DISTRICT: D1"
-    description: str
-    detection_timestamp: datetime
-    related_entity_id: str
+class AnomalyFactor(BaseModel):
+    name: str
+    weight: float
+    contribution: float
 
     model_config = ConfigDict(from_attributes=True)
 
-class AnomalyDetectionResponse(BaseModel):
-    anomalies: List[AnomalyResult]
-    model_version: str = "v1.0-statistical-deviation"
+class Anomaly(BaseModel):
+    anomaly_id: str
+    anomaly_type: str
+    severity: str
+    affected_entity_id: str
+    affected_entity_type: str
+    affected_entity_name: str
+    anomaly_score: float
+    contributing_factors: List[AnomalyFactor]
+    description: str
+    detected_at: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class DistrictAnomaly(BaseModel):
+    district_id: str
+    district_name: str
+    anomaly_score: float
+    severity: str
+    crime_count: int
+    fir_count: int
+    hotspot_score: float
+    contributing_factors: List[AnomalyFactor]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class StationAnomaly(BaseModel):
+    station_id: str
+    station_name: str
+    district_id: str
+    district_name: str
+    anomaly_score: float
+    severity: str
+    crime_count: int
+    fir_count: int
+    hotspot_score: float
+    contributing_factors: List[AnomalyFactor]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AnomalySummary(BaseModel):
+    total_anomalies: int
+    high_anomalies: int
+    critical_anomalies: int
+    affected_districts: int
+    affected_stations: int
+    average_anomaly_score: float
+    anomaly_distribution: List[dict]
 
     model_config = ConfigDict(from_attributes=True)
