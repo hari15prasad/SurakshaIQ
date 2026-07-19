@@ -19,7 +19,7 @@ export type { Hotspot, DistrictHotspot, StationHotspot, HotspotSummary, HotspotF
 export { trendsApi } from './trendsApi';
 export type { TrendPoint } from './trendsApi';
 export { anomaliesApi } from './anomaliesApi';
-export type { Anomaly } from './anomaliesApi';
+export type { Anomaly, DistrictAnomaly, StationAnomaly, AnomalySummary, AnomalyFactor } from './anomaliesApi';
 export { repeatOffendersApi } from './repeatOffendersApi';
 export type { RepeatOffender, RepeatOffenderDetail, RepeatOffenderStatistics, RepeatOffenderFilters } from './repeatOffendersApi';
 export { networkApi } from './networkApi';
