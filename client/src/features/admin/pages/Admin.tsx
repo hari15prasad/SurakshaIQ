@@ -12,8 +12,8 @@ interface UserRow {
 
 const SAMPLE_USERS: UserRow[] = [
   { id: 'u1', name: 'Dr. Rajesh Kumar', email: 'dgp@karnataka.gov.in', role: 'STATE_COMMAND', active: true },
-  { id: 'u2', name: 'Priya Sharma', email: 'admin@karnataka.gov.in', role: 'ADMIN', active: true },
-  { id: 'u3', name: 'Inspector Rao', email: 'rao@karnataka.gov.in', role: 'STATION_OFFICER', active: true },
+  { id: 'u2', name: 'Priya Sharma', email: 'admin@karnataka.gov.in', role: 'SYSTEM_ADMINISTRATOR', active: true },
+  { id: 'u3', name: 'Inspector Rao', email: 'rao@karnataka.gov.in', role: 'STATION_HOUSE_OFFICER', active: true },
 ];
 
 const userColumns: DataTableColumn<UserRow>[] = [

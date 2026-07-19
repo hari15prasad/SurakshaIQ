@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from 'hooks/useAuth';
 import { UserRole } from './types';
 import { LoadingSkeleton } from 'shared/components';
+import { hasRole } from 'utils/permissions';
 
 interface RequireAuthProps {
   children?: React.ReactNode;
@@ -25,8 +26,8 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children, roles }) => 
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (roles && user && !roles.includes(user.role)) {
-    return <Navigate to="/forbidden" replace />;
+  if (roles && user && !hasRole(user, ...roles)) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

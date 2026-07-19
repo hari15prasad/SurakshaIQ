@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from 'hooks/useAuth';
-import { UserRole, PII_PERMISSIONS } from './types';
+import { UserRole } from './types';
+import { hasPermission, hasRole } from 'utils/permissions';
 
 interface RoleGateProps {
   children: React.ReactNode;
@@ -25,15 +26,15 @@ export const RoleGate: React.FC<RoleGateProps> = ({
     return <>{fallback}</>;
   }
 
-  if (roles && !roles.includes(user.role)) {
+  if (roles && !hasRole(user, ...roles)) {
     return <>{fallback}</>;
   }
 
-  if (permissions && !permissions.every((p) => user.permissions.includes(p))) {
+  if (permissions && !permissions.every((permission) => hasPermission(user, permission))) {
     return <>{fallback}</>;
   }
 
-  if (requirePii && !PII_PERMISSIONS.some((p) => user.permissions.includes(p))) {
+  if (requirePii && !hasPermission(user, 'VIEW_PII')) {
     return <>{redacted}</>;
   }
 

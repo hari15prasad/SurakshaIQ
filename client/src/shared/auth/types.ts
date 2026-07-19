@@ -2,10 +2,10 @@ export type UserRole =
   | 'STATE_COMMAND'
   | 'RANGE_IG'
   | 'DISTRICT_SP'
-  | 'STATION_OFFICER'
+  | 'STATION_HOUSE_OFFICER'
   | 'INVESTIGATING_OFFICER'
   | 'CID_ANALYST'
-  | 'ADMIN';
+  | 'SYSTEM_ADMINISTRATOR';
 
 export type Jurisdiction = 'STATE' | 'RANGE' | 'DISTRICT' | 'STATION';
 
@@ -39,10 +39,10 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   STATE_COMMAND: 'State Command (DGP)',
   RANGE_IG: 'Range IG',
   DISTRICT_SP: 'District SP',
-  STATION_OFFICER: 'Station House Officer',
+  STATION_HOUSE_OFFICER: 'Station House Officer',
   INVESTIGATING_OFFICER: 'Investigating Officer',
   CID_ANALYST: 'CID Analyst',
-  ADMIN: 'System Administrator',
+  SYSTEM_ADMINISTRATOR: 'System Administrator',
 };
 
-export const PII_PERMISSIONS = ['view:pii', 'view:victim', 'view:accused', 'view:juvenile'] as const;
+export const PII_PERMISSIONS = ['VIEW_PII'] as const;

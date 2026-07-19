@@ -21,6 +21,12 @@ const Login: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) return;
 
+    const catalystAvailable = typeof window !== 'undefined' && !!(window as any).catalyst;
+    if (!catalystAvailable) {
+      console.warn('Catalyst login widget skipped: SDK unavailable in local development.');
+      return;
+    }
+
     try {
       login('loginDivElementId', window.location.origin + from);
     } catch (error) {

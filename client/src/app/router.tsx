@@ -1,8 +1,9 @@
 import React, { Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout, AuthLayout, AppShellLayout, DashboardLayout } from 'app/layouts';
-import { RequireAuth } from 'shared/auth';
+import { ProtectedRoute, RoleProtectedRoute } from 'routes';
 import { LoadingSkeleton } from 'shared/components';
+import { MODULE_ROLES } from 'utils/permissions';
 
 const LoadingState = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -31,27 +32,46 @@ export const router = createBrowserRouter([
         children: [{ index: true, element: lazy(() => import('features/authentication/pages/Login')) }],
       },
       {
-        element: <RequireAuth />,
+        element: <ProtectedRoute />,
         children: [
           {
             element: <AppShellLayout />,
             children: [
               {
-                path: 'dashboard',
-                element: <DashboardLayout />,
+                element: <RoleProtectedRoute roles={MODULE_ROLES.dashboard} />,
                 children: [
-                  { index: true, element: lazy(() => import('features/dashboard/pages/Dashboard')) },
+                  {
+                    path: 'dashboard',
+                    element: <DashboardLayout />,
+                    children: [
+                      { index: true, element: lazy(() => import('features/dashboard/pages/Dashboard')) },
+                    ],
+                  },
                 ],
               },
-              { path: 'hotspots', element: lazy(() => import('features/hotspots/pages/Hotspots')) },
-              { path: 'trends', element: lazy(() => import('features/trends/pages/Trends')) },
-              { path: 'anomalies', element: lazy(() => import('features/anomalies/pages/Anomalies')) },
               {
-                path: 'repeat-offenders',
-                element: lazy(() => import('features/repeat-offenders/pages/RepeatOffenders')),
+                element: <RoleProtectedRoute roles={MODULE_ROLES.hotspots} />,
+                children: [{ path: 'hotspots', element: lazy(() => import('features/hotspots/pages/Hotspots')) }],
               },
               {
-                element: <RequireAuth roles={['CID_ANALYST', 'ADMIN']} />,
+                element: <RoleProtectedRoute roles={MODULE_ROLES.trends} />,
+                children: [{ path: 'trends', element: lazy(() => import('features/trends/pages/Trends')) }],
+              },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES.anomalies} />,
+                children: [{ path: 'anomalies', element: lazy(() => import('features/anomalies/pages/Anomalies')) }],
+              },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES['repeat-offenders']} />,
+                children: [
+                  {
+                    path: 'repeat-offenders',
+                    element: lazy(() => import('features/repeat-offenders/pages/RepeatOffenders')),
+                  },
+                ],
+              },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES['network-analysis']} />,
                 children: [
                   {
                     path: 'network-analysis',
@@ -59,22 +79,34 @@ export const router = createBrowserRouter([
                   },
                 ],
               },
-              { path: 'risk-scoring', element: lazy(() => import('features/risk-scoring/pages/RiskScoring')) },
-              { path: 'alerts', element: lazy(() => import('features/alerts/pages/Alerts')) },
-              { path: 'reports', element: lazy(() => import('features/reports/pages/Reports')) },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES['risk-scoring']} />,
+                children: [
+                  { path: 'risk-scoring', element: lazy(() => import('features/risk-scoring/pages/RiskScoring')) },
+                ],
+              },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES.alerts} />,
+                children: [{ path: 'alerts', element: lazy(() => import('features/alerts/pages/Alerts')) }],
+              },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES.reports} />,
+                children: [{ path: 'reports', element: lazy(() => import('features/reports/pages/Reports')) }],
+              },
+              {
+                element: <RoleProtectedRoute roles={MODULE_ROLES.admin} />,
+                children: [{ path: 'admin', element: lazy(() => import('features/admin/pages/Admin')) }],
+              },
               {
                 path: 'district/:districtId',
                 element: lazy(() => import('features/district-comparison/pages/DistrictDetail')),
-              },
-              {
-                element: <RequireAuth roles={['ADMIN']} />,
-                children: [{ path: 'admin', element: lazy(() => import('features/admin/pages/Admin')) }],
               },
             ],
           },
         ],
       },
-      { path: 'forbidden', element: lazy(() => import('features/errors/pages/Forbidden')) },
+      { path: 'unauthorized', element: lazy(() => import('features/errors/pages/Unauthorized')) },
+      { path: 'forbidden', element: <Navigate to="/unauthorized" replace /> },
       { path: '*', element: lazy(() => import('features/errors/pages/NotFound')) },
     ],
   },

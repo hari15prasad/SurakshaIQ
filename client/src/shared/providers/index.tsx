@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import ErrorBoundary from './ErrorBoundary';
@@ -6,19 +6,35 @@ import { ThemeProvider } from './ThemeProvider';
 import { ToastProvider } from './ToastProvider';
 import { AuthProvider, useAuth } from 'shared/auth';
 import type { AxiosError } from 'services/api';
+import { registerSessionLifecycle, handleForbidden, handleUnauthorized } from 'utils/sessionLifecycle';
 
-function QueryProvider({ children }: { children: React.ReactNode }) {
+function SessionLifecycleRegistrar({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  const queryClient = useMemo(() => {
-    const handleError = (error: unknown) => {
-      const axiosError = error as AxiosError;
-      if (axiosError.response?.status === 401) {
-        void logout();
+  useEffect(() => {
+    return registerSessionLifecycle({
+      onUnauthorized: () => {
+        logout();
         navigate('/login', { replace: true });
-      } else if (axiosError.response?.status === 403) {
-        navigate('/forbidden', { replace: true });
+      },
+      onForbidden: () => {
+        navigate('/unauthorized', { replace: true });
+      },
+    });
+  }, [logout, navigate]);
+
+  return <>{children}</>;
+}
+
+function QueryProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = React.useMemo(() => {
+    const handleError = (error: unknown) => {
+      const status = (error as AxiosError).response?.status;
+      if (status === 401) {
+        handleUnauthorized();
+      } else if (status === 403) {
+        handleForbidden();
       }
     };
 
@@ -37,16 +53,16 @@ function QueryProvider({ children }: { children: React.ReactNode }) {
       queryCache: new QueryCache({ onError: handleError }),
       mutationCache: new MutationCache({ onError: handleError }),
     });
-  }, [logout, navigate]);
+  }, []);
 
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
 export const RouterProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <QueryProvider>
-      {children}
-    </QueryProvider>
+    <SessionLifecycleRegistrar>
+      <QueryProvider>{children}</QueryProvider>
+    </SessionLifecycleRegistrar>
   );
 };
 

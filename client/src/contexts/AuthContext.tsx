@@ -39,11 +39,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let mounted = true;
     
     const init = async () => {
-      // Small delay to ensure window.catalyst is fully loaded by external script
-      // if it's injected asynchronously.
-      if (typeof window !== 'undefined' && !(window as any).catalyst) {
+      const catalystAvailable = typeof window !== 'undefined' && !!(window as any).catalyst;
+
+      if (catalystAvailable) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
+
       if (mounted) {
         await refreshSession();
       }

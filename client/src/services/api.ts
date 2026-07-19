@@ -1,11 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { apiGatewayUrl, apiTimeout } from 'config/env';
+import { handleForbidden, handleUnauthorized } from 'utils/sessionLifecycle';
 
-/**
- * Reusable Axios instance configured for Catalyst backend interactions.
- * Automatically includes Catalyst session cookies (withCredentials: true).
- * Does not implement any custom JWT interceptors or attach manual Authorization headers.
- */
 export const apiClient: AxiosInstance = axios.create({
   baseURL: apiGatewayUrl,
   timeout: apiTimeout,
@@ -14,6 +10,19 @@ export const apiClient: AxiosInstance = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    const status = error.response?.status;
+    if (status === 401) {
+      handleUnauthorized();
+    } else if (status === 403) {
+      handleForbidden();
+    }
+    return Promise.reject(error);
+  }
+);
 
 export type { AxiosError, AxiosRequestConfig };
 export default apiClient;

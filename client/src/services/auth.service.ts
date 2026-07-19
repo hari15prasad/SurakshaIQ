@@ -9,16 +9,13 @@ declare global {
 
 /**
  * Ensures the Catalyst Web SDK is loaded and initialized.
+ * Returns the auth module if available, or null if the SDK is absent.
  * Safe to call in browser environments only.
  */
 function getCatalystAuth() {
-  if (typeof window === 'undefined') {
-    throw new Error('Catalyst SDK can only be initialized in a browser environment.');
-  }
+  if (typeof window === 'undefined') return null;
   const sdk = window.catalyst;
-  if (!sdk || !sdk.auth) {
-    throw new Error('Zoho Catalyst SDK is not loaded or auth module is missing.');
-  }
+  if (!sdk || !sdk.auth) return null;
   return sdk.auth;
 }
 
@@ -30,6 +27,7 @@ export const authService = {
    */
   login(elementId: string, redirectUrl: string = '/dashboard') {
     const auth = getCatalystAuth();
+    if (!auth) return;
     auth.signIn(elementId, {
       service_url: redirectUrl,
     });
@@ -40,12 +38,11 @@ export const authService = {
    * @param redirectUrl The URL to redirect to after logout.
    */
   logout(redirectUrl: string = '/login') {
-    try {
-      const auth = getCatalystAuth();
-      // Ensure the backend session hook is also invoked if needed, though Catalyst handles session invalidation.
+    const auth = getCatalystAuth();
+    if (auth) {
       apiClient.post('/auth/logout').catch(() => {});
       auth.signOut(window.location.origin + redirectUrl);
-    } catch (e) {
+    } else {
       window.location.href = redirectUrl;
     }
   },
@@ -56,6 +53,7 @@ export const authService = {
    */
   async getCurrentUser(): Promise<any> {
     const auth = getCatalystAuth();
+    if (!auth) throw new Error('Catalyst SDK is not available.');
     const response = await auth.isUserAuthenticated();
     return response.content;
   },

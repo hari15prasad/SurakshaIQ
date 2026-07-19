@@ -1,10 +1,10 @@
 import React from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { Menu, Bell, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from 'shared/auth';
 import { useUIStore, useAlertStore } from 'shared/state';
 import { IconButton } from 'shared/components';
-import { getVisibleNavItems } from 'shared/config/navigation';
+import { getVisibleNavItems } from 'utils/permissions';
 import { useTheme } from 'shared/providers/ThemeProvider';
 import { buildVersion } from 'config/env';
 import { ROLE_LABELS } from 'shared/auth/types';
@@ -14,8 +14,9 @@ const AppShellLayout: React.FC = () => {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { unreadCount } = useAlertStore();
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
-  const visibleItems = getVisibleNavItems(user?.role);
+  const visibleItems = getVisibleNavItems(user);
 
   const jurisdictionLabel = user?.jurisdiction
     ? `${user.jurisdiction.type}${user.jurisdiction.districtId ? `: ${user.jurisdiction.districtId}` : ''}`
@@ -87,7 +88,7 @@ const AppShellLayout: React.FC = () => {
             <div className="relative">
               <IconButton
                 icon={<Bell size={20} />}
-                onClick={() => { window.location.href = '/alerts'; }}
+                onClick={() => navigate('/alerts')}
                 aria-label="View alerts"
               />
               {unreadCount > 0 && (

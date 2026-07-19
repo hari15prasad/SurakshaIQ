@@ -23,7 +23,7 @@ const columns: DataTableColumn<OffenderRow>[] = [
     key: 'name',
     header: 'Identity',
     render: (r) => (
-      <RoleGate requirePii permissions={['view:pii']}>
+      <RoleGate requirePii>
         {r.piiName}
       </RoleGate>
     ),
