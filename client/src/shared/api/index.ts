@@ -15,7 +15,7 @@ export type {
 
 export { authApi } from './authApi';
 export { hotspotsApi } from './hotspotsApi';
-export type { Hotspot } from './hotspotsApi';
+export type { Hotspot, DistrictHotspot, StationHotspot, HotspotSummary, HotspotFilters } from './hotspotsApi';
 export { trendsApi } from './trendsApi';
 export type { TrendPoint } from './trendsApi';
 export { anomaliesApi } from './anomaliesApi';
