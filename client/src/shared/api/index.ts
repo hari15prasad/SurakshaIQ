@@ -21,7 +21,7 @@ export type { TrendPoint } from './trendsApi';
 export { anomaliesApi } from './anomaliesApi';
 export type { Anomaly } from './anomaliesApi';
 export { repeatOffendersApi } from './repeatOffendersApi';
-export type { RepeatOffender } from './repeatOffendersApi';
+export type { RepeatOffender, RepeatOffenderDetail, RepeatOffenderStatistics, RepeatOffenderFilters } from './repeatOffendersApi';
 export { networkApi } from './networkApi';
 export type { NetworkGraph, NetworkNode, NetworkEdge } from './networkApi';
 export { riskScoringApi } from './riskScoringApi';

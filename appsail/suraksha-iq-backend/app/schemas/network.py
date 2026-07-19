@@ -1,25 +1,43 @@
 from pydantic import BaseModel, ConfigDict
 from typing import List, Dict, Any, Optional
 
-class Node(BaseModel):
+class NetworkNode(BaseModel):
     id: str
     label: str
-    type: str # e.g. "Offender", "Crime", "Location"
+    type: str  # Offender, Crime, FIR, PoliceStation, District
     properties: Dict[str, Any] = {}
 
     model_config = ConfigDict(from_attributes=True)
 
-class Link(BaseModel):
+class NetworkEdge(BaseModel):
     source: str
     target: str
-    type: str # e.g. "COMMITTED", "OCCURRED_AT", "ASSOCIATED_WITH"
+    type: str  # committed, registered_in, investigated_by, occurred_at, belongs_to
     properties: Dict[str, Any] = {}
+
+    model_config = ConfigDict(from_attributes=True)
+
+class NetworkStatistics(BaseModel):
+    total_nodes: int
+    total_edges: int
+    connected_offenders: int
+    connected_stations: int
+    connected_districts: int
+    average_connections: float
 
     model_config = ConfigDict(from_attributes=True)
 
 class NetworkGraphResponse(BaseModel):
-    nodes: List[Node]
-    links: List[Link]
-    centrality_metrics: Optional[Dict[str, float]] = None
+    nodes: List[NetworkNode]
+    edges: List[NetworkEdge]
+    statistics: NetworkStatistics
+    metadata: Dict[str, Any] = {}
+
+    model_config = ConfigDict(from_attributes=True)
+
+class NetworkSearchResponse(BaseModel):
+    query: str
+    nodes: List[NetworkNode]
+    edges: List[NetworkEdge]
 
     model_config = ConfigDict(from_attributes=True)
