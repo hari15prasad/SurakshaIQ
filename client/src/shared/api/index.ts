@@ -27,7 +27,7 @@ export type { NetworkNode, NetworkEdge, NetworkStatistics, NetworkGraphResponse,
 export { riskScoringApi } from './riskScoringApi';
 export type { RiskFactor, RiskPrediction, DistrictRisk, StationRisk, RiskSummary } from './riskScoringApi';
 export { alertsApi } from './alertsApi';
-export type { AlertRecord } from './alertsApi';
+export type { AlertRecord, AlertSummary, AlertFilters } from './alertsApi';
 export { casesApi } from './casesApi';
 export type { CaseRecord } from './casesApi';
 export { districtsApi } from './districtsApi';
