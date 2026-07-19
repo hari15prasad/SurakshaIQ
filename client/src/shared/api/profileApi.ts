@@ -1,4 +1,4 @@
-import apiClient from './client';
+import { apiClient } from 'services/api';
 import type { Officer } from 'shared/auth/types';
 
 export interface OfficerProfileResponse {

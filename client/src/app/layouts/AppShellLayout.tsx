@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink } from 'react-router-dom';
 import { Menu, Bell, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from 'shared/auth';
 import { useUIStore, useAlertStore } from 'shared/state';
@@ -10,21 +10,19 @@ import { buildVersion } from 'config/env';
 import { ROLE_LABELS } from 'shared/auth/types';
 
 const AppShellLayout: React.FC = () => {
-  const { officer, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { unreadCount } = useAlertStore();
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
 
-  const visibleItems = getVisibleNavItems(officer?.role);
+  const visibleItems = getVisibleNavItems(user?.role);
 
-  const jurisdictionLabel = officer?.jurisdiction
-    ? `${officer.jurisdiction.type}${officer.jurisdiction.districtId ? `: ${officer.jurisdiction.districtId}` : ''}`
+  const jurisdictionLabel = user?.jurisdiction
+    ? `${user.jurisdiction.type}${user.jurisdiction.districtId ? `: ${user.jurisdiction.districtId}` : ''}`
     : 'Karnataka State';
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+  const handleLogout = () => {
+    logout();
   };
 
   return (
@@ -74,10 +72,10 @@ const AppShellLayout: React.FC = () => {
         <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
           <div>
             <h1 className="text-xl font-bold text-navy-700 dark:text-white">
-              {officer?.designation ?? 'Command Dashboard'}
+              {user?.designation ?? 'Command Dashboard'}
             </h1>
             <p className="text-sm text-gov-slate">
-              {officer ? `${officer.rank} · ${ROLE_LABELS[officer.role]}` : ''} · {jurisdictionLabel}
+              {user ? `${user.rank} · ${ROLE_LABELS[user.role]}` : ''} · {jurisdictionLabel}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -89,7 +87,7 @@ const AppShellLayout: React.FC = () => {
             <div className="relative">
               <IconButton
                 icon={<Bell size={20} />}
-                onClick={() => navigate('/alerts')}
+                onClick={() => { window.location.href = '/alerts'; }}
                 aria-label="View alerts"
               />
               {unreadCount > 0 && (

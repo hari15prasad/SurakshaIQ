@@ -1,31 +1,11 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import ErrorBoundary from './ErrorBoundary';
 import { ThemeProvider } from './ThemeProvider';
 import { ToastProvider } from './ToastProvider';
 import { AuthProvider, useAuth } from 'shared/auth';
-import { setAuthHandlers } from 'shared/api';
-import type { ApiError } from 'shared/api';
-
-function AuthHandlerBridge({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-
-  useEffect(() => {
-    setAuthHandlers({
-      onUnauthorized: () => {
-        void logout();
-        navigate('/login', { replace: true });
-      },
-      onForbidden: () => {
-        navigate('/forbidden', { replace: true });
-      },
-    });
-  }, [logout, navigate]);
-
-  return <>{children}</>;
-}
+import type { AxiosError } from 'services/api';
 
 function QueryProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
@@ -33,11 +13,11 @@ function QueryProvider({ children }: { children: React.ReactNode }) {
 
   const queryClient = useMemo(() => {
     const handleError = (error: unknown) => {
-      const apiError = error as ApiError;
-      if (apiError?.status === 401) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 401) {
         void logout();
         navigate('/login', { replace: true });
-      } else if (apiError?.status === 403) {
+      } else if (axiosError.response?.status === 403) {
         navigate('/forbidden', { replace: true });
       }
     };
@@ -48,7 +28,7 @@ function QueryProvider({ children }: { children: React.ReactNode }) {
           staleTime: 1000 * 60 * 5,
           gcTime: 1000 * 60 * 10,
           retry: (failureCount, error) => {
-            const status = (error as unknown as ApiError)?.status;
+            const status = (error as unknown as AxiosError).response?.status;
             if (status === 401 || status === 403) return false;
             return failureCount < 1;
           },
@@ -65,7 +45,7 @@ function QueryProvider({ children }: { children: React.ReactNode }) {
 export const RouterProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <QueryProvider>
-      <AuthHandlerBridge>{children}</AuthHandlerBridge>
+      {children}
     </QueryProvider>
   );
 };

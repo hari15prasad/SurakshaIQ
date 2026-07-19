@@ -1,4 +1,4 @@
-import apiClient from './client';
+import { apiClient } from 'services/api';
 import { buildCursorParams } from './pagination';
 import type { CursorPaginationParams, PaginatedResponse } from './pagination';
 

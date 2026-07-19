@@ -1,17 +1,12 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from 'shared/auth';
-
-declare global {
-  interface Window {
-    catalyst: any;
-  }
-}
+import { useAuth } from 'hooks/useAuth';
+import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
 
   const from = (location.state as { from?: string })?.from ?? '/dashboard';
 
@@ -24,19 +19,15 @@ const Login: React.FC = () => {
 
   // Mount the Catalyst embedded auth widget.
   useEffect(() => {
-   if (isAuthenticated) return;
+    if (isAuthenticated) return;
 
-  const sdk = (window as any).catalyst;
-
-  if (!sdk) {
-    console.error('Catalyst SDK not loaded');
-    return;
-  }
-
-  sdk.auth.signIn('loginDivElementId', {
-    service_url: '/dashboard',
-  });
-  }, [isAuthenticated]);
+    try {
+      login('loginDivElementId', window.location.origin + from);
+    } catch (error) {
+      console.error('Catalyst login initialization failed', error);
+      toast.error('Failed to initialize login widget. Please refresh the page.');
+    }
+  }, [isAuthenticated, login, from]);
 
   return (
     <div className="space-y-4">

@@ -1,4 +1,4 @@
-import apiClient from './client';
+import { apiClient } from 'services/api';
 
 export const authApi = {
   logout: async (): Promise<void> => {

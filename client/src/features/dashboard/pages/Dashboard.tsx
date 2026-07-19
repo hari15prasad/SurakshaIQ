@@ -5,7 +5,7 @@ import { useAuth } from 'shared/auth';
 import { useFilterStore } from 'shared/state';
 
 const Dashboard: React.FC = () => {
-  const { officer } = useAuth();
+  const { user } = useAuth();
   const { jurisdiction, dateRange } = useFilterStore();
 
   const filterSummary = [
@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-navy-700 dark:text-white">Command Overview</h1>
         <p className="text-sm text-gov-slate">
-          Welcome, {officer?.name ?? 'Officer'}
+          Welcome, {user?.name ?? 'Officer'}
           {filterSummary ? ` · ${filterSummary}` : ''}
         </p>
       </div>
@@ -64,7 +64,7 @@ const Dashboard: React.FC = () => {
           <h2 className="mb-4 text-lg font-semibold text-navy-700 dark:text-white">Jurisdiction Scope</h2>
           <p className="text-sm text-gov-slate">
             Data visibility is restricted to your assigned{' '}
-            <strong>{officer?.jurisdiction.type ?? 'STATE'}</strong> scope. Use the filter bar to
+            <strong>{user?.jurisdiction.type ?? 'STATE'}</strong> scope. Use the filter bar to
             drill down within authorized boundaries.
           </p>
         </Card>

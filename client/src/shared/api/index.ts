@@ -1,8 +1,9 @@
-export { default as apiClient, setAuthHandlers, parseProblemDetail } from './client';
-export type { ApiError, AxiosRequestConfig } from './client';
+export { apiClient } from 'services/api';
+export type { AxiosError, AxiosRequestConfig } from 'services/api';
 export {
   buildCursorParams,
   createAbortSignal,
+  parseProblemDetail,
   parseProblemDetail as parseApiProblemDetail,
 } from './pagination';
 export type {
@@ -10,6 +11,7 @@ export type {
   PaginatedResponse,
   CursorPaginationParams,
 } from './pagination';
+
 
 export { authApi } from './authApi';
 export { hotspotsApi } from './hotspotsApi';
