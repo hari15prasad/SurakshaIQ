@@ -1,61 +1,139 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone, timedelta
 
 from app.api.deps import get_current_officer
-from app.repositories.criminal_repo import CriminalRepository
-from app.schemas.criminal import CriminalResponse
+from app.services.repeat_offender_service import RepeatOffenderService
+from app.schemas.repeat_offender import (
+    RepeatOffenderResponse,
+    RepeatOffenderDetailResponse,
+    RepeatOffenderStatisticsResponse,
+)
 
 router = APIRouter()
 
+
 @router.get(
     "/",
-    response_model=List[CriminalResponse],
+    response_model=List[RepeatOffenderResponse],
     summary="Get Repeat Offenders",
-    description="Retrieves a paginated list of repeat offenders from Catalyst Data Store."
+    description="Retrieves a paginated list of repeat offenders with optional filters.",
 )
 async def get_repeat_offenders(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(20, ge=1, le=100, description="Items per page"),
-    current_user: Dict[str, Any] = Depends(get_current_officer)
+    district_id: Optional[str] = Query(None, description="Filter by district ID"),
+    station_id: Optional[str] = Query(None, description="Filter by police station ID"),
+    crime_type: Optional[str] = Query(None, description="Filter by crime type"),
+    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
+    minimum_offences: int = Query(1, ge=1, description="Minimum offences threshold"),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
 ):
     """Retrieves repeat offenders from Catalyst Data Store."""
     try:
-        offset = (page - 1) * size
-        repo = CriminalRepository()
-        offenders = await repo.find_active(limit=size, offset=offset)
-        return [CriminalResponse.model_validate(o) for o in offenders]
+        service = RepeatOffenderService()
+        offenders = await service.get_repeat_offenders(
+            current_user,
+            district_id=district_id,
+            station_id=station_id,
+            crime_type=crime_type,
+            start_date=start_date,
+            end_date=end_date,
+            minimum_offences=minimum_offences,
+            limit=limit,
+            offset=offset,
+        )
+        return offenders
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch repeat offenders: {str(e)}"
         )
 
+
+@router.get(
+    "/top",
+    response_model=List[RepeatOffenderResponse],
+    summary="Get Top Repeat Offenders",
+    description="Returns the highest-ranked repeat offenders.",
+)
+async def get_top_repeat_offenders(
+    limit: int = Query(10, ge=1, le=100),
+    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves top repeat offenders from Catalyst Data Store."""
+    try:
+        service = RepeatOffenderService()
+        offenders = await service.get_top_repeat_offenders(
+            current_user,
+            limit=limit,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        return offenders
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch top repeat offenders: {str(e)}"
+        )
+
+
 @router.get(
     "/{offender_id}",
-    response_model=CriminalResponse,
+    response_model=RepeatOffenderDetailResponse,
     summary="Get Repeat Offender Details",
-    description="Retrieves detailed information for a specific offender."
+    description="Retrieves detailed information for a specific offender.",
 )
 async def get_offender_details(
     offender_id: str,
-    current_user: Dict[str, Any] = Depends(get_current_officer)
+    current_user: Dict[str, Any] = Depends(get_current_officer),
 ):
     """Retrieves offender details from Catalyst Data Store."""
     try:
-        repo = CriminalRepository()
-        offender = await repo.find_by_id(offender_id)
-
-        if not offender:
+        service = RepeatOffenderService()
+        detail = await service.get_offender_details(current_user, offender_id)
+        if not detail:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Offender not found"
             )
-
-        return CriminalResponse.model_validate(offender)
+        return detail
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch offender details: {str(e)}"
+        )
+
+
+@router.get(
+    "/statistics",
+    response_model=RepeatOffenderStatisticsResponse,
+    summary="Get Repeat Offender Statistics",
+    description="Retrieves aggregated repeat offender statistics.",
+)
+async def get_repeat_offender_statistics(
+    start_date: Optional[datetime] = Query(None, description="Start date (UTC)"),
+    end_date: Optional[datetime] = Query(None, description="End date (UTC)"),
+    current_user: Dict[str, Any] = Depends(get_current_officer),
+):
+    """Retrieves repeat offender statistics from Catalyst Data Store."""
+    try:
+        service = RepeatOffenderService()
+        stats = await service.get_statistics(current_user, start_date=start_date, end_date=end_date)
+        return stats
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch repeat offender statistics: {str(e)}"
         )
