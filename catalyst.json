@@ -11,7 +11,7 @@
   },
   "appsail": [
     {
-      "source": ".",
+      "source": "appsail/suraksha-iq-backend",
       "name": "suraksha-iq-backend"
     }
   ]

@@ -1,5 +1,5 @@
-export const apiGatewayUrl =
-  import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:3001';
+export const apiBaseUrl =
+  import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export const apiTimeout = import.meta.env.VITE_API_TIMEOUT
   ? parseInt(import.meta.env.VITE_API_TIMEOUT, 10)

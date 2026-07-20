@@ -1,23 +1,86 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# =========================================
+# React / Node
+# =========================================
 
-# dependencies
-/node_modules
-/.pnp
+node_modules/
+.pnp
 .pnp.js
+coverage/
+build/
+dist/
 
-# testing
-/coverage
+# =========================================
+# Environment files
+# =========================================
 
-# production
-/build
-
-# misc
-.DS_Store
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
+client/.env.local
+client/.env
+
+# =========================================
+# Logs
+# =========================================
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+
+# =========================================
+# macOS / Windows
+# =========================================
+
+.DS_Store
+Thumbs.db
+
+# =========================================
+# Python
+# =========================================
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+appsail/suraksha-iq-backend/venv/
+
+# =========================================
+# Docker
+# =========================================
+
+.dockerignore
+
+# =========================================
+# Catalyst
+# =========================================
+
+.catalystrc
+catalyst-debug.log
+deploy.log
+
+# =========================================
+# IDEs
+# =========================================
+
+.vscode/
+.idea/
+
+# =========================================
+# Misc
+# =========================================
+
+*.swp
+*.tmp

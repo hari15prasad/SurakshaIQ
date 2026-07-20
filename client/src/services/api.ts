@@ -1,9 +1,9 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
-import { apiGatewayUrl, apiTimeout } from 'config/env';
+import { apiBaseUrl, apiTimeout } from 'config/env';
 import { handleForbidden, handleUnauthorized } from 'utils/sessionLifecycle';
 
 export const apiClient: AxiosInstance = axios.create({
-  baseURL: apiGatewayUrl,
+  baseURL: apiBaseUrl,
   timeout: apiTimeout,
   withCredentials: true,
   headers: {
