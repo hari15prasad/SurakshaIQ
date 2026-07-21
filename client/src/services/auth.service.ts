@@ -19,31 +19,36 @@ function getCatalystAuth() {
   return sdk.auth;
 }
 
+function buildRedirectUrl(path: string): string {
+  const base = (import.meta.env.VITE_BASE_PATH as string | undefined)?.replace(/\/$/, '') || '';
+  return `${window.location.origin}${base}${path}`;
+}
+
 export const authService = {
   /**
    * Triggers the Catalyst hosted login UI for a specific DOM element.
    * @param elementId The ID of the HTML element where the widget will be rendered.
-   * @param redirectUrl The URL to redirect to after successful Catalyst login.
+   * @param path The route path to redirect to after successful Catalyst login.
    */
-  login(elementId: string, redirectUrl: string = '/dashboard') {
+  login(elementId: string, path: string = '/dashboard') {
     const auth = getCatalystAuth();
     if (!auth) return;
     auth.signIn(elementId, {
-      service_url: redirectUrl,
+      service_url: buildRedirectUrl(path),
     });
   },
 
   /**
    * Signs the user out from Catalyst and redirects to the login page.
-   * @param redirectUrl The URL to redirect to after logout.
+   * @param path The route path to redirect to after logout.
    */
-  logout(redirectUrl: string = '/login') {
+  logout(path: string = '/login') {
     const auth = getCatalystAuth();
     if (auth) {
       apiClient.post('/auth/logout').catch(() => {});
-      auth.signOut(window.location.origin + redirectUrl);
+      auth.signOut(buildRedirectUrl(path));
     } else {
-      window.location.href = redirectUrl;
+      window.location.href = buildRedirectUrl(path);
     }
   },
 
@@ -66,5 +71,21 @@ export const authService = {
     const response = await apiClient.post('/auth/verify-catalyst');
     // Backend returns { access_token, token_type, officer }
     return response.data;
+  },
+
+  /**
+   * Lightweight check to see if a Catalyst session exists.
+   * Returns true if authenticated, false otherwise.
+   * Does not call the backend.
+   */
+  async checkSession(): Promise<boolean> {
+    const auth = getCatalystAuth();
+    if (!auth) return false;
+    try {
+      const response = await auth.isUserAuthenticated();
+      return !!response.content;
+    } catch {
+      return false;
+    }
   },
 };

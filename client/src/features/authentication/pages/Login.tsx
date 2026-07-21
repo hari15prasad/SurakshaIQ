@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'hooks/useAuth';
+import { authService } from 'services/auth.service';
 import toast from 'react-hot-toast';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, refreshSession } = useAuth();
 
   const from = (location.state as { from?: string })?.from ?? '/dashboard';
 
@@ -17,7 +18,7 @@ const Login: React.FC = () => {
     }
   }, [isAuthenticated, from, navigate]);
 
-  // Mount the Catalyst embedded auth widget.
+  // Mount the Catalyst embedded auth widget and detect login completion.
   useEffect(() => {
     if (isAuthenticated) return;
 
@@ -28,12 +29,21 @@ const Login: React.FC = () => {
     }
 
     try {
-      login('loginDivElementId', window.location.origin + from);
+      login('loginDivElementId', from);
     } catch (error) {
       console.error('Catalyst login initialization failed', error);
       toast.error('Failed to initialize login widget. Please refresh the page.');
     }
-  }, [isAuthenticated, login, from]);
+
+    const interval = setInterval(async () => {
+      const hasSession = await authService.checkSession();
+      if (hasSession) {
+        await refreshSession();
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, login, from, refreshSession]);
 
   return (
     <div className="space-y-4">

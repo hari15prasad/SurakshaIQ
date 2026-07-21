@@ -2,6 +2,7 @@
   "name": "suraksha-iq-client",
   "version": "0.0.1",
   "homepage": "index.html",
+  "login_redirect": "/app/dashboard",
   "build": {
     "command": "npm run build",
     "output": "build"
