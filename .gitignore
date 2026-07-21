@@ -52,3 +52,6 @@ deploy.log
 # Docker
 docker-compose.override.yml
 node_modules/
+documents/
+docs/
+node_modules/
